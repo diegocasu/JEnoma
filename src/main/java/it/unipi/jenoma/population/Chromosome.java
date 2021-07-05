@@ -20,6 +20,10 @@ public class Chromosome<T> implements Iterable<T> {
         return genes.get(index);
     }
 
+    public List<T> getGeneList() {
+        return genes;
+    }
+
     public void setGene(int index, T newGene) {
         genes.set(index, newGene);
     }
@@ -43,6 +47,10 @@ public class Chromosome<T> implements Iterable<T> {
                 throw new UnsupportedOperationException("The removal of genes is not supported");
             }
         };
+    }
+
+    public void cross(Chromosome<T> c, int from, int to){
+       for(int i = from; i<=to; i++ ) this.genes.set(i, c.getGene(i));
     }
 
     @Override
