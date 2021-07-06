@@ -6,9 +6,11 @@ import it.unipi.jenoma.operator.Evaluation;
 import it.unipi.jenoma.operator.Mutation;
 import it.unipi.jenoma.operator.Selection;
 import it.unipi.jenoma.operator.TerminationCondition;
+import it.unipi.jenoma.utils.Configuration;
 
 
 public class GeneticAlgorithm {
+    private Configuration configuration;
     private Evaluation<?> evaluation;
     private Selection<?> selection;
     private Crossover<?> crossover;
@@ -18,6 +20,15 @@ public class GeneticAlgorithm {
 
 
     public GeneticAlgorithm() {}
+
+    public Configuration getConfiguration() {
+        return configuration;
+    }
+
+    public GeneticAlgorithm setConfiguration(Configuration configuration) {
+        this.configuration = configuration;
+        return this;
+    }
 
     public GeneticAlgorithm setEvaluation(Evaluation<?> evaluationFunction) {
         this.evaluation = evaluationFunction;
