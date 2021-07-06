@@ -6,11 +6,13 @@ import it.unipi.jenoma.operator.Evaluation;
 import it.unipi.jenoma.operator.Mutation;
 import it.unipi.jenoma.operator.Selection;
 import it.unipi.jenoma.operator.TerminationCondition;
+import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.Configuration;
 
 
 public class GeneticAlgorithm {
     private Configuration configuration;
+    private Population<?> population;
     private Evaluation<?> evaluation;
     private Selection<?> selection;
     private Crossover<?> crossover;
@@ -28,6 +30,10 @@ public class GeneticAlgorithm {
     public GeneticAlgorithm setConfiguration(Configuration configuration) {
         this.configuration = configuration;
         return this;
+    }
+
+    public void setPopulation(Population<?> population) {
+        this.population = population;
     }
 
     public GeneticAlgorithm setEvaluation(Evaluation<?> evaluationFunction) {
@@ -55,7 +61,7 @@ public class GeneticAlgorithm {
         return this;
     }
 
-    public void setElitismStrategy(Elitism elitism) {
+    public void setElitism(Elitism elitism) {
         this.elitism = elitism;
     }
 
