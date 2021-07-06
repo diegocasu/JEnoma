@@ -24,3 +24,7 @@ hs_err_pid*
 
 *.idea/*
 .target/
+.ebin/
+cluster_init.bat
+cluster_init.sh
+configuration.json
