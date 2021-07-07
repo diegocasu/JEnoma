@@ -1,5 +1,6 @@
 package it.unipi.jenoma.operator;
 
+import it.unipi.jenoma.population.Individual;
 import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.PRNG;
 

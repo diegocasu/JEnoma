@@ -1,10 +1,9 @@
 package it.unipi.jenoma.population;
 
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 
-public class Chromosome<T> implements Iterable<T> {
+public class Chromosome<T> implements Iterable<T>, Cloneable{
     private final List<T> genes;
 
 
@@ -66,5 +65,14 @@ public class Chromosome<T> implements Iterable<T> {
         output.append("]");
 
         return output.toString();
+    }
+
+    @Override
+    public Chromosome clone() throws CloneNotSupportedException {
+        super.clone();
+        List<T> l = new ArrayList<T>();
+        l.addAll(this.genes);
+        Chromosome<T> ch = new Chromosome<T>(l);
+        return ch;
     }
 }

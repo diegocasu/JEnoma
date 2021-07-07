@@ -1,7 +1,7 @@
 package it.unipi.jenoma.population;
 
 
-public class Individual<T extends Chromosome<?>> implements Comparable<Individual<T>>{
+public class Individual<T extends Chromosome<?>> implements Comparable<Individual<T>>, Cloneable{
     private final T chromosome;
     private double fitness;
 
@@ -11,7 +11,7 @@ public class Individual<T extends Chromosome<?>> implements Comparable<Individua
         this.fitness = 0;
     }
 
-    public T getChromosome() {
+    public Chromosome getChromosome() {
         return chromosome;
     }
 
@@ -34,5 +34,18 @@ public class Individual<T extends Chromosome<?>> implements Comparable<Individua
                 "it.unipi.jenoma.population.Chromosome=" + chromosome +
                 ", fitness=" + fitness +
                 '}';
+    }
+
+    @Override
+    public Individual<T> clone() {
+        try {
+            super.clone();
+            Individual<T> i = new Individual<>((T)this.chromosome.clone());
+            i.setFitness(this.getFitness());
+            return i;
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
