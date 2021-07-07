@@ -1,0 +1,1 @@
+{"src/main/erlang/*", [debug_info, {outdir, "ebin"}, {i, "include"}]}.
