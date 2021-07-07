@@ -19,4 +19,7 @@ public class PRNG {
         return this.mersenneTwister.nextInt(n);
     }
 
+    public double nextDouble(double n) {
+        return (this.mersenneTwister.nextDouble()) % n ;
+    }
 }
