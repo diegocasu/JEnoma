@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.List;
 
 
-public class ClusterUtils {
+class ClusterUtils {
     public static class Cluster {
         public static final String COOKIE = "jenoma";
         public static final String REMOTE_WORK_DIRECTORY = ".jenoma";
@@ -21,10 +21,6 @@ public class ClusterUtils {
     public static class Node {
         public static final String JAVA = "javanode";
         public static final String ERLANG = "erlangnode";
-    }
-
-    public static class Host {
-        public static final String COORDINATOR = "localhost";
     }
 
     public static class Process {
@@ -48,6 +44,13 @@ public class ClusterUtils {
             Collections.addAll(command,"sh", "-c");
 
         return command;
+    }
+
+    private static String asBackgroundCommand(String command) {
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return "start /B " + command;
+        } else
+            return command + "&";
     }
 
     private static String getScriptFileExtension() {
@@ -97,17 +100,40 @@ public class ClusterUtils {
                 Erlang.MODULES_DIRECTORY);
     }
 
+    private static String getClusterInitScriptErl(Configuration configuration, String worker) {
+        String[] jarPathElements =  configuration.getJarPath().split("[/\\\\]");
+        String jarFile = jarPathElements[jarPathElements.length - 1];
+
+        return String.format(
+                getClusterInitScriptSSH(configuration, worker) +
+                        " \"cd %s && erl -noshell -sname %s@%s -setcookie %s -pz %s " +
+                        "-s %s start %s %s %s '%s' %s %s\"",
+                Cluster.REMOTE_WORK_DIRECTORY,
+                Node.ERLANG,
+                worker,
+                Cluster.COOKIE,
+                Erlang.MODULES_DIRECTORY,
+                Erlang.WORKER_MODULE,
+                Process.WORKER,
+                Process.COORDINATOR,
+                ClusterUtils.compose(Node.ERLANG, configuration.getCoordinator()),
+                jarFile,
+                Process.WORKER,
+                ClusterUtils.compose(Node.JAVA, worker));
+    }
+
     public static List<String> getShellCommandStartEPMD() {
         List<String> command = new ArrayList<>(getShellCommandPrefix());
         Collections.addAll(command, "epmd", "-daemon");
         return command;
     }
 
-    public static List<String> getShellCommandStartErlangCoordinator() {
+    public static List<String> getShellCommandStartErlangCoordinator(Configuration configuration) {
         List<String> command = new ArrayList<>(getShellCommandPrefix());
         Collections.addAll(command,
                 "erl",
-                "-sname", ClusterUtils.compose(Node.ERLANG, Host.COORDINATOR),
+                "-noshell",
+                "-sname", ClusterUtils.compose(Node.ERLANG, configuration.getCoordinator()),
                 "-setcookie", Cluster.COOKIE,
                 "-pz", Erlang.MODULES_DIRECTORY,
                 "-s",
@@ -115,7 +141,7 @@ public class ClusterUtils {
                 "start",
                 Process.COORDINATOR,
                 Process.COORDINATOR,
-                ClusterUtils.compose(Node.JAVA, Host.COORDINATOR));
+                ClusterUtils.compose(Node.JAVA, configuration.getCoordinator()));
 
         return command;
     }
@@ -130,18 +156,21 @@ public class ClusterUtils {
             writer.close();
 
             writer = new BufferedWriter(new FileWriter(scriptName, true));
+            writer.append("echo \"%%%%%% If an SSH command is successful, " +
+                    "but hangs, press ENTER to continue the execution %%%%%%\"");
+            writer.newLine();
 
             for (String worker : configuration.getWorkers()) {
                 writer.append(getClusterInitScriptMkdir(configuration, worker));
-                writer.newLine();
-
-                writer.append("echo done");
                 writer.newLine();
 
                 writer.append(getClusterInitScriptSCP(configuration, worker));
                 writer.newLine();
 
                 writer.append(getClusterInitScriptJar(configuration, worker));
+                writer.newLine();
+
+                writer.append(asBackgroundCommand(getClusterInitScriptErl(configuration, worker)));
                 writer.newLine();
             }
 

@@ -14,7 +14,9 @@ public class Configuration {
     private String jarPath;
     private String sshKeyFolder;
     private String sshUser;
+    private String coordinator;
     private List<String> workers;
+    private int timeoutWorker;
     private int seed;
 
 
@@ -22,7 +24,9 @@ public class Configuration {
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
         Configuration parsedConfiguration = new Gson().fromJson(reader, Configuration.class);
 
+        this.coordinator = parsedConfiguration.getCoordinator();
         this.workers = parsedConfiguration.getWorkers();
+        this.timeoutWorker = parsedConfiguration.getTimeoutWorker();
         this.seed = parsedConfiguration.getSeed();
         this.jarPath = parsedConfiguration.getJarPath();
         this.sshKeyFolder = parsedConfiguration.getSshKeyFolder();
@@ -52,8 +56,16 @@ public class Configuration {
         return filePath;
     }
 
+    public String getCoordinator() {
+        return coordinator;
+    }
+
     public List<String> getWorkers() {
         return workers;
+    }
+
+    public int getTimeoutWorker() {
+        return timeoutWorker;
     }
 
     public int getSeed() {

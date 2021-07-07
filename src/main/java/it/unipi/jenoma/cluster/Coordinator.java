@@ -3,6 +3,7 @@ package it.unipi.jenoma.cluster;
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangDecodeException;
 import com.ericsson.otp.erlang.OtpErlangExit;
+import com.ericsson.otp.erlang.OtpErlangInt;
 import com.ericsson.otp.erlang.OtpErlangList;
 import com.ericsson.otp.erlang.OtpErlangObject;
 import com.ericsson.otp.erlang.OtpErlangString;
@@ -42,7 +43,10 @@ public class Coordinator {
 
     private boolean startJavaNode() {
         try {
-            javaNode = new OtpNode(ClusterUtils.compose(ClusterUtils.Node.JAVA, ClusterUtils.Host.COORDINATOR));
+            javaNode = new OtpNode(
+                    ClusterUtils.compose(
+                            ClusterUtils.Node.JAVA,
+                            geneticAlgorithm.getConfiguration().getCoordinator()));
         } catch (IOException e) {
             //TODO: add error log
             e.printStackTrace();
@@ -56,7 +60,7 @@ public class Coordinator {
 
     private boolean startErlangNode() {
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(ClusterUtils.getShellCommandStartErlangCoordinator());
+        processBuilder.command(ClusterUtils.getShellCommandStartErlangCoordinator(geneticAlgorithm.getConfiguration()));
 
         try {
             processBuilder.start();
@@ -68,7 +72,7 @@ public class Coordinator {
 
         // Wait for a heartbeat sent by the spawned Erlang process.
         try {
-            OtpErlangAtom msg = (OtpErlangAtom) mailBox.receive(10000);
+            OtpErlangAtom msg = (OtpErlangAtom) mailBox.receive(geneticAlgorithm.getConfiguration().getTimeoutWorker());
 
             if (msg == null || !msg.equals(new OtpErlangAtom("heartbeat"))) {
                 // TODO: add error log.
@@ -82,9 +86,16 @@ public class Coordinator {
         return true;
     }
 
-    private void closeJavaNode() {
+    private void stopJavaNode() {
         mailBox.close();
         javaNode.close();
+    }
+
+    private void stopErlangNode() {
+        mailBox.send(
+                ClusterUtils.Process.COORDINATOR,
+                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
+                new OtpErlangAtom("stop"));
     }
 
     private void initializeCluster() {
@@ -93,17 +104,23 @@ public class Coordinator {
 
         List<OtpErlangObject> workers = new ArrayList<>();
         for (String worker : geneticAlgorithm.getConfiguration().getWorkers())
-            workers.add(new OtpErlangAtom(worker));
+            workers.add(
+                    new OtpErlangTuple(
+                            new OtpErlangObject[] {
+                                    new OtpErlangAtom(ClusterUtils.Process.WORKER),
+                                    new OtpErlangAtom(ClusterUtils.compose(ClusterUtils.Node.ERLANG, worker))
+                            }));
 
         OtpErlangTuple msg = new OtpErlangTuple(
                 new OtpErlangObject[] {
                         initClusterCmd,
-                        new OtpErlangList(workers.toArray(new OtpErlangObject[0]))
+                        new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
+                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker())
         });
 
         mailBox.send(
                 ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, ClusterUtils.Host.COORDINATOR),
+                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
                 msg);
     }
 
@@ -118,13 +135,13 @@ public class Coordinator {
             return;
 
         if (!startErlangNode()) {
-            closeJavaNode();
+            stopJavaNode();
             return;
         }
 
         if (!ClusterUtils.createClusterInitScript(geneticAlgorithm.getConfiguration())) {
-            closeJavaNode();
-            //TODO: closeErlangNode()
+            stopErlangNode();
+            stopJavaNode();
             return;
         }
 
@@ -132,6 +149,7 @@ public class Coordinator {
 
         //TODO: add error management with disposal of spawned processes
         //TODO: remember to close the node and the mailbox at the end of the computation
+        stopJavaNode();
     }
 
     // TODO: remove test
