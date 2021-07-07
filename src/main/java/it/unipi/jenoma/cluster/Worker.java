@@ -6,17 +6,21 @@ import com.ericsson.otp.erlang.OtpErlangExit;
 import com.ericsson.otp.erlang.OtpErlangObject;
 import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
 
 
 class Worker {
+    private final String host;
+    private final String loggerCoordinatorHost;
+    private WorkerLogger workerLogger;
     private OtpNode javaNode;
     private OtpMbox mailBox;
-    private String host;
 
-    public Worker(String host) {
+    public Worker(String host, String loggerCoordinatorHost) {
         this.host = host;
+        this.loggerCoordinatorHost = loggerCoordinatorHost;
     }
 
     private boolean startJavaNode() {
@@ -33,6 +37,19 @@ class Worker {
         return true;
     }
 
+    private boolean startWorkerLogger() {
+        try {
+            workerLogger = new WorkerLogger(
+                    host,
+                    loggerCoordinatorHost,
+                    ClusterUtils.compose(ClusterUtils.Node.JAVA, host));
+        } catch (IOException e) {
+            return false;
+        }
+
+        return true;
+    }
+
     private void stopJavaNode() {
         mailBox.close();
         javaNode.close();
@@ -45,13 +62,14 @@ class Worker {
                 new OtpErlangAtom("heartbeat"));
     }
 
-    private void mainLoop() throws OtpErlangDecodeException, OtpErlangExit {
+    private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
         OtpErlangAtom stopAtom = new OtpErlangAtom("stop");
 
         while (true) {
             OtpErlangObject msg = mailBox.receive();
 
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(stopAtom)) {
+                workerLogger.log("Stopping the execution.");
                 stopJavaNode();
                 return;
             }
@@ -60,24 +78,34 @@ class Worker {
     }
 
     public void start() {
-        if (!startJavaNode())
+        if (!startWorkerLogger())
             return;
 
+        if (!startJavaNode()) {
+            workerLogger.log("Java node failed to start.");
+            workerLogger.stop();
+            return;
+        }
+
+        workerLogger.log("Java node started correctly.");
         sendHeartbeatToErlangNode();
 
         try {
-            mainLoop();
+            receiveLoop();
         } catch (OtpErlangDecodeException | OtpErlangExit e) {
-            e.printStackTrace();
+            workerLogger.log(ExceptionUtils.getStackTrace(e));
             stopJavaNode();
         }
     }
 
     public static void main(String[] args) {
-        String erlangNodeName = args[0];
-        String host = erlangNodeName.split("@")[1];
+        String erlangWorkerNodeName = args[0];
+        String erlangCoordinatorNodeName = args[1];
 
-        Worker worker = new Worker(host);
+        String host = erlangWorkerNodeName.split("@")[1];
+        String loggerCoordinatorHost = erlangCoordinatorNodeName.split("@")[1];
+
+        Worker worker = new Worker(host, loggerCoordinatorHost);
         worker.start();
     }
 }

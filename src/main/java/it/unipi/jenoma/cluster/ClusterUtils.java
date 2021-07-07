@@ -2,6 +2,7 @@ package it.unipi.jenoma.cluster;
 
 import it.unipi.jenoma.utils.Configuration;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -9,6 +10,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 class ClusterUtils {
@@ -21,11 +24,13 @@ class ClusterUtils {
     public static class Node {
         public static final String JAVA = "javanode";
         public static final String ERLANG = "erlangnode";
+        public static final String LOGGER = "logger";
     }
 
     public static class Process {
         public static final String COORDINATOR = "coordinator";
         public static final String WORKER = "worker";
+        public static final String LOGGER = "logger";
     }
 
     public static class Erlang {
@@ -146,7 +151,7 @@ class ClusterUtils {
         return command;
     }
 
-    public static boolean createClusterInitScript(Configuration configuration) {
+    public static boolean createClusterInitScript(Configuration configuration, Logger logger) {
         String scriptName = Cluster.INIT_SCRIPT + getScriptFileExtension();
         String deleteOutputFile = getClusterInitScriptDeleteFile("output");
 
@@ -182,7 +187,7 @@ class ClusterUtils {
 
             writer.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
             return false;
         }
 

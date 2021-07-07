@@ -23,15 +23,14 @@ start(Args) ->
   register(lists:nth(1, Args), spawn(?MODULE, init, [State])).
 
 init(State) ->
-  JavaNodeCmd = io_lib:format("java -cp ~s it.unipi.jenoma.cluster.Worker ~s", [State#state.jar_file, node()]),
+  JavaNodeCmd = io_lib:format(
+    "java -cp ~s it.unipi.jenoma.cluster.Worker ~s ~s",
+    [State#state.jar_file, node(), State#state.erlang_coordinator_name]),
   spawn(fun() -> os:cmd(lists:flatten(JavaNodeCmd)) end),
-
-  file:write_file("/home/osboxes/.jenoma/output", "ERLANG SPAWN"),
 
   receive
     heartbeat ->
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} ! heartbeat,
-      file:write_file("/home/osboxes/.jenoma/output1", "JAVA SPAWN"),
       main_loop(State);
     stop ->
       stop_java_node(State),

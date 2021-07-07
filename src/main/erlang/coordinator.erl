@@ -44,6 +44,7 @@ wait_for_cluster_setup(MissingWorkers, State) ->
 
 main_loop(State) ->
   stop_cluster(State#state.workers),
+  {State#state.java_coordinator_process, State#state.java_coordinator_name} ! end_computation,
   stop(finished).
 
 stop_cluster(Workers) ->
