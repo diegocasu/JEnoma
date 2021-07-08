@@ -1,7 +1,9 @@
 package it.unipi.jenoma.population;
 
+import java.io.Serializable;
 
-public class Individual<T extends Chromosome<?>> implements Comparable<Individual<T>>, Cloneable{
+
+public class Individual<T extends Chromosome<?>> implements Comparable<Individual<T>>, Cloneable, Serializable {
     private final T chromosome;
     private double fitness;
 

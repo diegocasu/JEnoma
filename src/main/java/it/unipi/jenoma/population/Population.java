@@ -2,12 +2,13 @@ package it.unipi.jenoma.population;
 
 import it.unipi.jenoma.algorithm.AlgorithmException;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 
-public class Population<T extends Individual<?>> implements Iterable<T>, Cloneable{
+public class Population<T extends Individual<?>> implements Iterable<T>, Cloneable, Serializable {
     private final List<T> individuals;
     private double fitness;
 

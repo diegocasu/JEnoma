@@ -2,10 +2,11 @@ package it.unipi.jenoma.operator;
 
 import it.unipi.jenoma.population.Population;
 
+import java.io.Serializable;
 import java.util.List;
 
 
-public interface TerminationCondition<T> {
+public interface TerminationCondition<T> extends Serializable {
 
     T map(Population<?> population, int numberOfIterations);
 

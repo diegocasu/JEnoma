@@ -1,9 +1,10 @@
 package it.unipi.jenoma.population;
 
+import java.io.Serializable;
 import java.util.*;
 
 
-public class Chromosome<T> implements Iterable<T>, Cloneable{
+public class Chromosome<T> implements Iterable<T>, Cloneable, Serializable {
     private final List<T> genes;
 
 

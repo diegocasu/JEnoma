@@ -1,7 +1,9 @@
 package it.unipi.jenoma.operator;
 
+import java.io.Serializable;
 
-public class Elitism {
+
+public class Elitism implements Serializable {
     private final int numberOfIndividuals;
     private final Strategy strategy;
     public enum Strategy { RANDOM, WORST }

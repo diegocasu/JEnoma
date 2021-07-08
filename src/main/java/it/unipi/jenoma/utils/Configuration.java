@@ -6,10 +6,11 @@ import com.google.gson.GsonBuilder;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 
 
-public class Configuration {
+public class Configuration implements Serializable {
     private String filePath;
     private String jarPath;
     private String sshKeyFolder;
