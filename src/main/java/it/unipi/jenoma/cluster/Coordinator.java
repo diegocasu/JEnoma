@@ -175,7 +175,7 @@ public class Coordinator {
             localLogger.log(Level.INFO, "Error while creating the cluster initialization script.");
             stopErlangNode();
             stopJavaNode();
-            startCoordinatorLogger();
+            stopCoordinatorLogger();
             return false;
         }
 
