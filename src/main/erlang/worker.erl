@@ -41,7 +41,10 @@ main_loop(State) ->
   receive
     stop ->
       stop_java_node(State),
-      stop(stopped_by_coordinator)
+      stop(stopped_by_coordinator);
+    Workload ->
+      {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
+      main_loop(State)
   end.
 
 stop_java_node(State) ->

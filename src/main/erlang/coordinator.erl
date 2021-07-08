@@ -23,24 +23,41 @@ init(State) ->
   receive
     {InitClusterCmd, Workers, Timeout} ->
       NewState = State#state{workers = Workers, timeout = Timeout},
+
       spawn(fun() -> os:cmd(InitClusterCmd) end),
       wait_for_cluster_setup(length(Workers), NewState),
+      wait_for_workloads(NewState),
+
       main_loop(NewState);
     stop ->
       stop(stopped_by_java_coordinator)
   end.
 
-wait_for_cluster_setup(0, _) ->
-  cluster_ready;
+wait_for_cluster_setup(0, State) ->
+  {State#state.java_coordinator_process, State#state.java_coordinator_name} ! cluster_ready;
 
 wait_for_cluster_setup(MissingWorkers, State) ->
   receive
     heartbeat ->
       wait_for_cluster_setup(MissingWorkers - 1, State)
   after State#state.timeout ->
+    {State#state.java_coordinator_process, State#state.java_coordinator_name} ! cluster_timeout,
     stop_cluster(State#state.workers),
     stop(cluster_setup_timeout)
   end.
+
+wait_for_workloads(State) ->
+  receive
+    Workloads ->
+      send_workload(State#state.workers, Workloads)
+  end.
+
+send_workload([], []) ->
+  workloads_sent;
+
+send_workload([Worker|RemainingWorkers], [Workload|RemainingWorkloads]) ->
+  Worker ! Workload,
+  send_workload(RemainingWorkers, RemainingWorkloads).
 
 main_loop(State) ->
   stop_cluster(State#state.workers),

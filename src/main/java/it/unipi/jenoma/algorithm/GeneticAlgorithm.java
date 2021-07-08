@@ -9,8 +9,10 @@ import it.unipi.jenoma.operator.TerminationCondition;
 import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.Configuration;
 
+import java.io.Serializable;
 
-public class GeneticAlgorithm {
+
+public class GeneticAlgorithm implements Serializable {
     private Configuration configuration;
     private Population<?> population;
     private Evaluation<?> evaluation;
@@ -21,48 +23,68 @@ public class GeneticAlgorithm {
     private Elitism elitism;
 
 
-    public GeneticAlgorithm() {}
+    private void checkNullFields() {
+        String msg = null;
+
+        if (configuration == null) msg = "Configuration is null";
+        else if (population == null) msg = "Population is null";
+        else if (evaluation == null) msg = "Evaluation is null";
+        else if (selection == null) msg = "Selection is null";
+        else if (crossover == null) msg = "Crossover is null";
+        else if (mutation == null) msg = "Mutation is null";
+        else if (terminationCondition == null) msg = "TerminationCondition is null";
+        else if (elitism == null) msg = "Elitism is null";
+
+        if (msg != null)
+            throw new IllegalArgumentException(msg);
+    }
+
+    public GeneticAlgorithm(Configuration configuration,
+                            Population<?> population,
+                            Evaluation<?> evaluation,
+                            Selection<?> selection,
+                            Crossover<?> crossover,
+                            Mutation<?> mutation,
+                            TerminationCondition<?> terminationCondition,
+                            Elitism elitism) {
+        this.configuration = configuration;
+        this.population = population;
+        this.evaluation = evaluation;
+        this.selection = selection;
+        this.crossover = crossover;
+        this.mutation = mutation;
+        this.terminationCondition = terminationCondition;
+        this.elitism = elitism;
+        checkNullFields();
+    }
+
+    public GeneticAlgorithm(GeneticAlgorithm algorithm, Population<?> population) {
+        this.configuration = algorithm.configuration;
+        this.evaluation = algorithm.evaluation;
+        this.selection = algorithm.selection;
+        this.crossover = algorithm.crossover;
+        this.mutation = algorithm.mutation;
+        this.terminationCondition = algorithm.terminationCondition;
+        this.elitism = algorithm.elitism;
+        this.population = population;
+        //checkNullFields();  //TODO: uncomment
+    }
+
+    // TODO: remove this constructor used for convenience.
+    public GeneticAlgorithm(Configuration conf, Population<?> population) {
+        this.configuration = conf;
+        this.population = population;
+    }
 
     public Configuration getConfiguration() {
         return configuration;
     }
 
-    public GeneticAlgorithm setConfiguration(Configuration configuration) {
-        this.configuration = configuration;
-        return this;
+    public Population<?> getPopulation() {
+        return population;
     }
 
     public void setPopulation(Population<?> population) {
         this.population = population;
     }
-
-    public GeneticAlgorithm setEvaluation(Evaluation<?> evaluationFunction) {
-        this.evaluation = evaluationFunction;
-        return this;
-    }
-
-    public GeneticAlgorithm setSelection(Selection<?> selectionFunction) {
-        this.selection = selectionFunction;
-        return this;
-    }
-
-    public GeneticAlgorithm setCrossover(Crossover<?> crossoverFunction) {
-        this.crossover = crossoverFunction;
-        return this;
-    }
-
-    public GeneticAlgorithm setMutation(Mutation<?> mutationFunction) {
-        this.mutation = mutationFunction;
-        return this;
-    }
-
-    public GeneticAlgorithm setTerminationCondition(TerminationCondition<?> terminationCondition) {
-        this.terminationCondition = terminationCondition;
-        return this;
-    }
-
-    public void setElitism(Elitism elitism) {
-        this.elitism = elitism;
-    }
-
 }

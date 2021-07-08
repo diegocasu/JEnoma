@@ -97,7 +97,16 @@ public class Population<T extends Individual<?>> implements Iterable<T>, Cloneab
         }
     }
 
-    public int getLength(){return this.individuals.toArray().length;}
+    public int getLength() {
+        return this.individuals.size();
+    }
 
-    public T getIndividual(int i){return this.individuals.get(i);}
+    public T getIndividual(int i) {
+        return this.individuals.get(i);
+    }
+
+    // Returns a view of the portion of the population between the specified fromIndex, inclusive, and toIndex, exclusive.
+    public List<T> getIndividuals(int fromIndex, int toIndex) {
+        return this.individuals.subList(fromIndex, toIndex);
+    }
 }

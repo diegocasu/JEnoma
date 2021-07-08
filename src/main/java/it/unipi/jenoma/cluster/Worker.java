@@ -1,11 +1,15 @@
 package it.unipi.jenoma.cluster;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
+import com.ericsson.otp.erlang.OtpErlangBinary;
 import com.ericsson.otp.erlang.OtpErlangDecodeException;
 import com.ericsson.otp.erlang.OtpErlangExit;
 import com.ericsson.otp.erlang.OtpErlangObject;
 import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
+
+import it.unipi.jenoma.algorithm.GeneticAlgorithm;
+
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
@@ -73,6 +77,13 @@ class Worker {
                 stopJavaNode();
                 return;
             }
+
+            if (msg instanceof OtpErlangBinary msgBinary) {
+                GeneticAlgorithm geneticAlgorithm = (GeneticAlgorithm) msgBinary.getObject();
+                workerLogger.log("Received workload.");
+                workerLogger.log(geneticAlgorithm.getPopulation().toString());
+            }
+
             //TODO: add missing messages.
         }
     }

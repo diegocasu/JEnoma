@@ -1,6 +1,7 @@
 package it.unipi.jenoma.cluster;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
+import com.ericsson.otp.erlang.OtpErlangBinary;
 import com.ericsson.otp.erlang.OtpErlangDecodeException;
 import com.ericsson.otp.erlang.OtpErlangExit;
 import com.ericsson.otp.erlang.OtpErlangInt;
@@ -12,6 +13,9 @@ import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
 
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
+import it.unipi.jenoma.population.Chromosome;
+import it.unipi.jenoma.population.Individual;
+import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.Configuration;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
@@ -39,6 +43,10 @@ public class Coordinator {
     private CoordinatorLogger coordinatorLogger;
     private ExecutorService loggerExecutor;
 
+
+    private boolean noWorkersRegistered() {
+        return geneticAlgorithm.getConfiguration().getWorkers().size() == 0;
+    }
 
     private void loadLoggerConfiguration() {
         try {
@@ -140,8 +148,13 @@ public class Coordinator {
         loggerExecutor.shutdown();
     }
 
+    private void stopAllNodes() {
+        stopErlangNode();
+        stopJavaNode();
+        stopCoordinatorLogger();
+    }
+
     private boolean startCoordinator() {
-        loadLoggerConfiguration();
         localLogger.log(Level.INFO, "Initializing the required processes.");
 
         if (!startEPMD()) {
@@ -173,9 +186,7 @@ public class Coordinator {
 
         if (!ClusterUtils.createClusterInitScript(geneticAlgorithm.getConfiguration(), localLogger)) {
             localLogger.log(Level.INFO, "Error while creating the cluster initialization script.");
-            stopErlangNode();
-            stopJavaNode();
-            stopCoordinatorLogger();
+            stopAllNodes();
             return false;
         }
 
@@ -209,13 +220,62 @@ public class Coordinator {
                 msg);
     }
 
+    private boolean waitForClusterReady() {
+        OtpErlangAtom msg;
+
+        try {
+            msg = (OtpErlangAtom) mailBox.receive();
+        } catch (OtpErlangDecodeException | OtpErlangExit e) {
+            localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
+            return false;
+        }
+
+        return msg.equals(new OtpErlangAtom("cluster_ready"));
+    }
+
+    private boolean sendWorkloadsToErlangNode() {
+        Population<?> population = geneticAlgorithm.getPopulation();
+        List<String> workers = geneticAlgorithm.getConfiguration().getWorkers();
+        int chunkSize = population.getLength() / workers.size();
+
+        if (chunkSize < 2) {
+            localLogger.log(Level.INFO, "The actual setup assigns less than two individuals per worker. "
+                    + "Please decrease the number of workers or increase the population size.");
+            return false;
+        }
+
+        OtpErlangObject[] workloads = new OtpErlangObject[workers.size()];
+        for (int i = 0; i < workers.size(); i++) {
+            int endChunkIndex = (i == workers.size() - 1) ? population.getLength() : (i + 1)*chunkSize;
+
+            GeneticAlgorithm workload = new GeneticAlgorithm(
+                    geneticAlgorithm,
+                    new Population<>(new ArrayList<>(population.getIndividuals(i*chunkSize, endChunkIndex))));
+
+            workloads[i] = new OtpErlangBinary(workload);
+        }
+
+        mailBox.send(
+                ClusterUtils.Process.COORDINATOR,
+                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
+                new OtpErlangList(workloads));
+
+        return true;
+    }
+
     public Coordinator(GeneticAlgorithm geneticAlgorithm) {
         this.geneticAlgorithm = geneticAlgorithm;
         this.localLogger = Logger.getLogger(LOGGER_NAME);
     }
 
     public void start() {
-        //TODO: check if GeneticAlgorithm has all fields set (not null).
+        loadLoggerConfiguration();
+
+        if (noWorkersRegistered()) {
+            localLogger.log(Level.INFO, "No workers specified in the configuration file.");
+            localLogger.log(Level.INFO, "Stopping the initialization.");
+            return;
+        }
 
         if (!startCoordinator()) {
             localLogger.log(Level.INFO, "Stopping the initialization.");
@@ -225,12 +285,39 @@ public class Coordinator {
         localLogger.log(Level.INFO, "Initialization performed successfully.");
         localLogger.log(Level.INFO, "Starting the initialization of the cluster.");
         initializeCluster();
+        boolean clusterReady = waitForClusterReady();
 
+        if (!clusterReady) {
+            localLogger.log(Level.INFO, "Timeout: the cluster failed to start.");
+            localLogger.log(Level.INFO, "Stopping the initialization.");
+            stopAllNodes();
+            return;
+        }
+
+        localLogger.log(Level.INFO, "Cluster initialized successfully.");
+        localLogger.log(Level.INFO, "Sending workloads to workers.");
+        boolean workloadsSent = sendWorkloadsToErlangNode();
+
+        if (!workloadsSent) {
+            localLogger.log(Level.INFO, "Failed to send the workloads");
+            localLogger.log(Level.INFO, "Stopping the initialization.");
+            stopAllNodes();
+            return;
+        }
+
+        localLogger.log(Level.INFO, "Workloads sent successfully.");
+
+        try {
+            //TODO: remove. Used only for testing, so that the node is not closed before workers can send logs.
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         OtpErlangAtom msg;
         while(true) {
             try {
-                 msg = (OtpErlangAtom) mailBox.receive();
+                msg = (OtpErlangAtom) mailBox.receive();
             } catch (OtpErlangDecodeException | OtpErlangExit e) {
                 localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
                 return;
@@ -242,15 +329,25 @@ public class Coordinator {
                 return;
             }
         }
-
-        //TODO: add error management with disposal of spawned processes
-        //TODO: remember to close the node and the mailbox at the end of the computation
     }
 
     // TODO: remove test
     public static void main(String[] args) throws IOException {
         Configuration conf = new Configuration("configuration.json");
-        Coordinator c = new Coordinator(new GeneticAlgorithm().setConfiguration(conf));
+        Population<Individual<Chromosome<Integer>>> population = new Population<>(new ArrayList<>());
+
+        for (int i = 0; i < 23; i++) {
+            List<Integer> genes = new ArrayList<>();
+            genes.add(i);
+            genes.add(i);
+            genes.add(i);
+
+            Chromosome<Integer> chromosome = new Chromosome<>(genes);
+            Individual<Chromosome<Integer>> individual = new Individual<>(chromosome);
+            population.addIndividual(individual);
+        }
+
+        Coordinator c = new Coordinator(new GeneticAlgorithm(conf, population));
         c.start();
     }
 }
