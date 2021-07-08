@@ -150,8 +150,8 @@ public class Coordinator {
 
     private void stopAllNodes() {
         stopErlangNode();
-        stopJavaNode();
         stopCoordinatorLogger();
+        stopJavaNode();
     }
 
     private boolean startCoordinator() {
