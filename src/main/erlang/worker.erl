@@ -23,9 +23,12 @@ start(Args) ->
   register(lists:nth(1, Args), spawn(?MODULE, init, [State])).
 
 init(State) ->
+  ThisHost = lists:nth(2, string:tokens(atom_to_list(node()), "@")),
+  LoggerCoordinatorHost = lists:nth(2, string:tokens(atom_to_list(State#state.erlang_coordinator_name), "@")),
   JavaNodeCmd = io_lib:format(
     "java -cp ~s it.unipi.jenoma.cluster.Worker ~s ~s",
-    [State#state.jar_file, node(), State#state.erlang_coordinator_name]),
+    [State#state.jar_file, ThisHost, LoggerCoordinatorHost]),
+
   spawn(fun() -> os:cmd(lists:flatten(JavaNodeCmd)) end),
 
   receive

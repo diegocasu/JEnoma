@@ -110,13 +110,10 @@ class Worker {
     }
 
     public static void main(String[] args) {
-        String erlangWorkerNodeName = args[0];
-        String erlangCoordinatorNodeName = args[1];
+        String thisHost = args[0];
+        String loggerCoordinatorHost = args[1];
 
-        String host = erlangWorkerNodeName.split("@")[1];
-        String loggerCoordinatorHost = erlangCoordinatorNodeName.split("@")[1];
-
-        Worker worker = new Worker(host, loggerCoordinatorHost);
+        Worker worker = new Worker(thisHost, loggerCoordinatorHost);
         worker.start();
     }
 }
