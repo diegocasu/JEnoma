@@ -13,6 +13,7 @@ import java.io.Serializable;
 
 
 public class GeneticAlgorithm implements Serializable {
+    private int generationsElapsed;
     private Configuration configuration;
     private Population population;
     private Evaluation evaluation;
@@ -55,6 +56,7 @@ public class GeneticAlgorithm implements Serializable {
         this.mutation = mutation;
         this.terminationCondition = terminationCondition;
         this.elitism = elitism;
+        this.generationsElapsed = 0;
         checkNullFields();
     }
 
@@ -66,6 +68,7 @@ public class GeneticAlgorithm implements Serializable {
         this.mutation = algorithm.mutation;
         this.terminationCondition = algorithm.terminationCondition;
         this.elitism = algorithm.elitism;
+        this.generationsElapsed = algorithm.generationsElapsed;
         this.population = population;
         //checkNullFields();  //TODO: uncomment
     }
@@ -84,7 +87,39 @@ public class GeneticAlgorithm implements Serializable {
         return population;
     }
 
+    public Evaluation getEvaluation() {
+        return evaluation;
+    }
+
+    public Selection getSelection() {
+        return selection;
+    }
+
+    public Crossover getCrossover() {
+        return crossover;
+    }
+
+    public Mutation getMutation() {
+        return mutation;
+    }
+
+    public TerminationCondition<?> getTerminationCondition() {
+        return terminationCondition;
+    }
+
+    public Elitism getElitism() {
+        return elitism;
+    }
+
+    public int getGenerationsElapsed() {
+        return generationsElapsed;
+    }
+
     public void setPopulation(Population population) {
         this.population = population;
+    }
+
+    public void incrementGenerations() {
+        this.generationsElapsed += 1;
     }
 }
