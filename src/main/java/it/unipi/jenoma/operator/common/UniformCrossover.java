@@ -36,7 +36,7 @@ public class UniformCrossover implements Crossover {
         offspring.add(parent2);
 
         for (int i = 0; i < parent1.getChromosome().getLength(); i++) {
-            double outcome = Math.abs((double) prng.nextInt(1));
+            double outcome = prng.nextDouble();
             if (outcome > (1 - crossoverProbability)) {
                 offspring.get(0).getChromosome().cross((Chromosome) parent2.getChromosome(), i, i);
             }
