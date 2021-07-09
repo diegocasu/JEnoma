@@ -238,6 +238,11 @@ public class Coordinator {
         List<String> workers = geneticAlgorithm.getConfiguration().getWorkers();
         int chunkSize = population.getLength() / workers.size();
 
+        if (population.getLength() == 0) {
+            localLogger.log(Level.INFO, "Empty population.");
+            return false;
+        }
+
         if (chunkSize < 2) {
             localLogger.log(Level.INFO, "The actual setup assigns less than two individuals per worker. "
                     + "Please decrease the number of workers or increase the population size.");
@@ -299,7 +304,7 @@ public class Coordinator {
         boolean workloadsSent = sendWorkloadsToErlangNode();
 
         if (!workloadsSent) {
-            localLogger.log(Level.INFO, "Failed to send the workloads");
+            localLogger.log(Level.INFO, "Failed to send the workloads.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
             stopAllNodes();
             return;
