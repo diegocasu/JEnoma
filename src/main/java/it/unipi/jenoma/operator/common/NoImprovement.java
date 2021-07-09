@@ -24,7 +24,7 @@ public class NoImprovement implements TerminationCondition<Boolean> {
     }
 
     @Override
-    public Boolean map(Population population, int numberOfIterations, ClusterLogger logger) {
+    public Boolean map(Population population, int generationsElapsed, ClusterLogger logger) {
         double currentBestFitness = 0;
 
         for (Individual individual : population) {

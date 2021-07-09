@@ -11,7 +11,7 @@ import java.util.List;
 // TODO: implement
 public class LowPopulationVariability<T extends Serializable> implements TerminationCondition<T> {
     @Override
-    public T map(Population population, int numberOfIterations, ClusterLogger logger) {
+    public T map(Population population, int generationsElapsed, ClusterLogger logger) {
         return null;
     }
 

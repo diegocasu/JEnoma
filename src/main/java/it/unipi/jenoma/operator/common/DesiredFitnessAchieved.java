@@ -17,7 +17,7 @@ public class DesiredFitnessAchieved implements TerminationCondition<Boolean> {
     }
 
     @Override
-    public Boolean map(Population population, int numberOfIterations, ClusterLogger logger) {
+    public Boolean map(Population population, int generationsElapsed, ClusterLogger logger) {
         double bestFitnessAchieved = population.getIndividual(0).getFitness();
 
         for (Individual individual : population) {

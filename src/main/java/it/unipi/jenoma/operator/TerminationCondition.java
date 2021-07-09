@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface TerminationCondition<T extends Serializable> extends Serializable {
 
-    T map(Population population, int numberOfIterations, ClusterLogger logger);
+    T map(Population population, int generationsElapsed, ClusterLogger logger);
 
     boolean end(List<T> partialConditions, ClusterLogger logger);
 }
