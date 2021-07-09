@@ -2,9 +2,11 @@ package it.unipi.jenoma.utils;
 
 import org.apache.commons.math3.random.MersenneTwister;
 
+
 public class PRNG {
     private MersenneTwister mersenneTwister;
     private int seed;
+
 
     public PRNG(int seed) {
         this.seed = seed;
@@ -19,7 +21,7 @@ public class PRNG {
         return this.mersenneTwister.nextInt(n);
     }
 
-    public double nextDouble(double n) {
-        return (this.mersenneTwister.nextDouble()) % n ;
+    public double nextDouble() {
+        return this.mersenneTwister.nextDouble();
     }
 }

@@ -6,7 +6,7 @@ import it.unipi.jenoma.utils.PRNG;
 import java.io.Serializable;
 
 
-public interface Mutation<T extends Individual<?>> extends Serializable {
+public interface Mutation extends Serializable {
 
-    void mutate(T individual, PRNG prng);
+    void mutate(Individual individual, PRNG prng);
 }

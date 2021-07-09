@@ -14,11 +14,11 @@ import java.io.Serializable;
 
 public class GeneticAlgorithm implements Serializable {
     private Configuration configuration;
-    private Population<?> population;
-    private Evaluation<?> evaluation;
-    private Selection<?> selection;
-    private Crossover<?> crossover;
-    private Mutation<?> mutation;
+    private Population population;
+    private Evaluation evaluation;
+    private Selection selection;
+    private Crossover crossover;
+    private Mutation mutation;
     private TerminationCondition<?> terminationCondition;
     private Elitism elitism;
 
@@ -40,11 +40,11 @@ public class GeneticAlgorithm implements Serializable {
     }
 
     public GeneticAlgorithm(Configuration configuration,
-                            Population<?> population,
-                            Evaluation<?> evaluation,
-                            Selection<?> selection,
-                            Crossover<?> crossover,
-                            Mutation<?> mutation,
+                            Population population,
+                            Evaluation evaluation,
+                            Selection selection,
+                            Crossover crossover,
+                            Mutation mutation,
                             TerminationCondition<?> terminationCondition,
                             Elitism elitism) {
         this.configuration = configuration;
@@ -58,7 +58,7 @@ public class GeneticAlgorithm implements Serializable {
         checkNullFields();
     }
 
-    public GeneticAlgorithm(GeneticAlgorithm algorithm, Population<?> population) {
+    public GeneticAlgorithm(GeneticAlgorithm algorithm, Population population) {
         this.configuration = algorithm.configuration;
         this.evaluation = algorithm.evaluation;
         this.selection = algorithm.selection;
@@ -71,7 +71,7 @@ public class GeneticAlgorithm implements Serializable {
     }
 
     // TODO: remove this constructor used for convenience.
-    public GeneticAlgorithm(Configuration conf, Population<?> population) {
+    public GeneticAlgorithm(Configuration conf, Population population) {
         this.configuration = conf;
         this.population = population;
     }
@@ -80,11 +80,11 @@ public class GeneticAlgorithm implements Serializable {
         return configuration;
     }
 
-    public Population<?> getPopulation() {
+    public Population getPopulation() {
         return population;
     }
 
-    public void setPopulation(Population<?> population) {
+    public void setPopulation(Population population) {
         this.population = population;
     }
 }

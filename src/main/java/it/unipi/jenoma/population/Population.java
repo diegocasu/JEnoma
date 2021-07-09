@@ -1,42 +1,40 @@
 package it.unipi.jenoma.population;
 
-import it.unipi.jenoma.algorithm.AlgorithmException;
+import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 
-public class Population<T extends Individual<?>> implements Iterable<T>, Cloneable, Serializable {
-    private final List<T> individuals;
+public class Population implements Iterable<Individual>, Serializable {
+    private final List<Individual> individuals;
     private double fitness;
 
-    public Population(List<T> individuals) {
+
+    public Population(List<Individual> individuals) {
         this.individuals = individuals;
-        this.fitness = 0;
+        computeFitness();
     }
 
     public void addIndividual(Individual individual) {
-        individuals.add((T)individual);
+        individuals.add(individual);
         this.fitness += individual.getFitness();
     }
 
-
-    public void removeIndividual(Individual i) {
-        this.fitness -= i.getFitness();
-        individuals.remove(i);
+    public void removeIndividual(Individual individual) {
+        this.fitness -= individual.getFitness();
+        individuals.remove(individual);
     }
 
-    public Population<T> removeAll(){
+    public void removeAll() {
         individuals.clear();
-        this.fitness=0;
-        return this;
+        this.fitness = 0;
     }
 
-    public Iterator<T> iterator() {
-        return new Iterator<T>() {
-            private final Iterator<T> iterator = individuals.iterator();
+    public Iterator<Individual> iterator() {
+        return new Iterator<>() {
+            private final Iterator<Individual> iterator = individuals.iterator();
 
             @Override
             public boolean hasNext() {
@@ -44,7 +42,7 @@ public class Population<T extends Individual<?>> implements Iterable<T>, Cloneab
             }
 
             @Override
-            public T next() {
+            public Individual next() {
                 return iterator.next();
             }
 
@@ -52,7 +50,6 @@ public class Population<T extends Individual<?>> implements Iterable<T>, Cloneab
             public void remove() {
                 throw new UnsupportedOperationException("The removal of individuals is not supported");
             }
-
         };
     }
 
@@ -60,7 +57,7 @@ public class Population<T extends Individual<?>> implements Iterable<T>, Cloneab
     public String toString() {
         StringBuilder output = new StringBuilder();
 
-        for (T individual : individuals) {
+        for (Individual individual : individuals) {
             output.append(individual).append("\n");
         }
 
@@ -72,41 +69,33 @@ public class Population<T extends Individual<?>> implements Iterable<T>, Cloneab
         return fitness;
     }
 
-    public void computeFitness(){
-        double acc = 0;
-        for(Individual i : individuals){
-            acc += i.getFitness();
-        }
-        this.fitness = acc;
-    }
-
     public void setFitness(double fitness) {
         this.fitness = fitness;
     }
 
-    public Population<T> clone(){
-        try {
-            super.clone();
-            List<T> i = new ArrayList<T>();
-            i.addAll(this.individuals);
-            Population<T> p = new Population<>(i);
-            p.setFitness(this.fitness);
-            return p;
-        } catch (CloneNotSupportedException e) {
-            throw new AlgorithmException(e);
-        }
+    public void computeFitness(){
+        double accumulator = 0;
+
+        for(Individual i : individuals)
+            accumulator += i.getFitness();
+
+        this.fitness = accumulator;
     }
 
     public int getLength() {
         return this.individuals.size();
     }
 
-    public T getIndividual(int i) {
+    public Individual getIndividual(int i) {
         return this.individuals.get(i);
     }
 
     // Returns a view of the portion of the population between the specified fromIndex, inclusive, and toIndex, exclusive.
-    public List<T> getIndividuals(int fromIndex, int toIndex) {
+    public List<Individual> getIndividuals(int fromIndex, int toIndex) {
         return this.individuals.subList(fromIndex, toIndex);
+    }
+
+    public Population clone() {
+        return SerializationUtils.clone(this);
     }
 }

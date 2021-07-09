@@ -1,10 +1,13 @@
 package it.unipi.jenoma.population;
 
+import org.apache.commons.lang3.SerializationUtils;
+
 import java.io.Serializable;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
 
 
-public class Chromosome<T> implements Iterable<T>, Cloneable, Serializable {
+public class Chromosome<T extends Serializable> implements Iterable<T>, Serializable {
     private final List<T> genes;
 
 
@@ -18,10 +21,6 @@ public class Chromosome<T> implements Iterable<T>, Cloneable, Serializable {
 
     public T getGene(int index) {
         return genes.get(index);
-    }
-
-    public List<T> getGeneList() {
-        return genes;
     }
 
     public void setGene(int index, T newGene) {
@@ -49,8 +48,9 @@ public class Chromosome<T> implements Iterable<T>, Cloneable, Serializable {
         };
     }
 
-    public void cross(Chromosome<T> c, int from, int to){
-       for(int i = from; i<=to; i++ ) this.genes.set(i, c.getGene(i));
+    public void cross(Chromosome<T> c, int from, int to) {
+       for (int i = from; i <= to; i++)
+           this.genes.set(i, c.getGene(i));
     }
 
     @Override
@@ -68,12 +68,7 @@ public class Chromosome<T> implements Iterable<T>, Cloneable, Serializable {
         return output.toString();
     }
 
-    @Override
-    public Chromosome clone() throws CloneNotSupportedException {
-        super.clone();
-        List<T> l = new ArrayList<T>();
-        l.addAll(this.genes);
-        Chromosome<T> ch = new Chromosome<T>(l);
-        return ch;
+    public Chromosome<T> clone() {
+        return SerializationUtils.clone(this);
     }
 }

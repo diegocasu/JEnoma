@@ -7,55 +7,55 @@ import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.PRNG;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-public class TournamentSelection<T extends Population<?>> implements Selection<T>{
 
-    private T population;
-    private T matingPool;
-    private int chromosomeChosenForReproduction;
-    private PRNG prng;
-    private int candidateSelectedForTournament;
+public class TournamentSelection implements Selection {
+    private final int chromosomeChosenForReproduction;
+    private final int candidateSelectedForTournament;
 
-    public TournamentSelection(int chromosomeChosenForReproduction, int candidateSelectedForTournament, PRNG prng) {
+
+    public TournamentSelection(int chromosomeChosenForReproduction, int candidateSelectedForTournament) {
         this.chromosomeChosenForReproduction = chromosomeChosenForReproduction;
         this.candidateSelectedForTournament = candidateSelectedForTournament;
-        this.prng = prng;
     }
 
-
     @Override
-    public T select(T population, PRNG prng) {
-
-        if(this.candidateSelectedForTournament < this.population.getLength()){
+    public Population select(Population population, PRNG prng) {
+        if (this.candidateSelectedForTournament > population.getLength()) {
             throw new AlgorithmException("TOURNAMENTSELECTION: Number of candidates selected for tournament exceeding " +
                                          "population length");
         }
 
-        if (this.matingPool != null)
-            this.matingPool.removeAll();
+        Population matingPool = new Population(new ArrayList<>(chromosomeChosenForReproduction));
 
-        this.population = (T) population.clone();
-        this.matingPool = (T) population.clone().removeAll();
+        for (int i = 0; i < this.chromosomeChosenForReproduction; i++) {
+            List<Individual> tournamentCandidates = new ArrayList<>(candidateSelectedForTournament);
+            Set<Integer> extracted = new HashSet<>(candidateSelectedForTournament);
+            int j = 0;
 
-        for (int i = 0; i < this.chromosomeChosenForReproduction; i++) this.matingPool.addIndividual(select_helper());
+            while (j < candidateSelectedForTournament) {
+                int index = prng.nextInt(population.getLength());
 
-        return (T) this.matingPool;
-    }
+                if (extracted.contains(index))
+                    continue;
 
-    public Individual<?> select_helper() {
+                extracted.add(index);
+                tournamentCandidates.add(population.getIndividual(index));
+                j++;
+            }
 
-        List<Individual> tournamentCandidates = new ArrayList<>(this.candidateSelectedForTournament);
+            Individual fittest = tournamentCandidates.get(0);
+            for (Individual individual : tournamentCandidates) {
+                if (individual.getFitness() > fittest.getFitness())
+                    fittest = individual;
+            }
 
-        for(int i =0; i < this.candidateSelectedForTournament; i++)
-            tournamentCandidates.add(this.population.getIndividual(prng.nextInt(this.population.getLength())));
-
-        Individual fittest = tournamentCandidates.get(0);
-        for(Individual i : tournamentCandidates){
-            if(i.getFitness() > fittest.getFitness())
-                fittest = i;
+            matingPool.addIndividual(fittest);
         }
 
-        return fittest;
+        return matingPool;
     }
 }

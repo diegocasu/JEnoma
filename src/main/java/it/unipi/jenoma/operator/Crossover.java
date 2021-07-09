@@ -7,7 +7,7 @@ import java.io.Serializable;
 import java.util.List;
 
 
-public interface Crossover<T extends Individual<?>> extends Serializable {
+public interface Crossover extends Serializable {
 
-    List<T> crossover(T parent1, T parent2, PRNG prng);
+    List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng);
 }

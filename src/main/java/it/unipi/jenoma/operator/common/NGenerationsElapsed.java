@@ -5,14 +5,22 @@ import it.unipi.jenoma.population.Population;
 
 import java.util.List;
 
-public class NGenerationsElapsed<T> implements TerminationCondition<T> {
-    @Override
-    public T map(Population<?> population, int numberOfIterations) {
-        return null;
+
+public class NGenerationsElapsed implements TerminationCondition<Boolean> {
+    private final int maxNumberOfGenerations;
+
+
+    public NGenerationsElapsed(int maxNumberOfGenerations) {
+        this.maxNumberOfGenerations = maxNumberOfGenerations;
     }
 
     @Override
-    public boolean end(List<T> partialConditions) {
-        return false;
+    public Boolean map(Population population, int numberOfIterations) {
+        return maxNumberOfGenerations > numberOfIterations;
+    }
+
+    @Override
+    public boolean end(List<Boolean> partialConditions) {
+        return partialConditions.get(0);
     }
 }

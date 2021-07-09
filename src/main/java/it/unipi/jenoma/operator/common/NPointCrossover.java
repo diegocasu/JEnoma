@@ -6,15 +6,9 @@ import it.unipi.jenoma.population.Chromosome;
 import it.unipi.jenoma.population.Individual;
 import it.unipi.jenoma.utils.PRNG;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class NPointCrossover<T extends Individual<?>> implements Crossover<T> {
-
-    private int n;
-
-    public NPointCrossover(int n) {
-        this.n = n;
-    }
 /*
      ________________________________________
     | O | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |  parent1
@@ -32,10 +26,17 @@ public class NPointCrossover<T extends Individual<?>> implements Crossover<T> {
     | 1 | 1 | 1 | 0 | 0 | 0 | 1 | 1 | 0 | 0 |  child2
     |________________________________________
  */
+public class NPointCrossover implements Crossover {
+    private int n;
+
+
+    public NPointCrossover(int n) {
+        this.n = n;
+    }
 
     @Override
-    public List<T> crossover(T parent1, T parent2, PRNG prng) {
-        List<T> offspring = new ArrayList<T>();
+    public List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng) {
+        List<Individual> offspring = new ArrayList<>();
         offspring.add(parent1);
         offspring.add(parent2);
 
@@ -56,11 +57,11 @@ public class NPointCrossover<T extends Individual<?>> implements Crossover<T> {
             crossPoint += (maxPartitionSize == 1) ? 1 : prng.nextInt(maxPartitionSize);
 
             if (isOddTurn) {
-                offspring.get(0).getChromosome().cross(parent1.getChromosome(), old, crossPoint);
-                offspring.get(1).getChromosome().cross(parent2.getChromosome(), old, crossPoint);
+                offspring.get(0).getChromosome().cross((Chromosome) parent1.getChromosome(), old, crossPoint);
+                offspring.get(1).getChromosome().cross((Chromosome) parent2.getChromosome(), old, crossPoint);
             } else {
-                offspring.get(0).getChromosome().cross(parent2.getChromosome(), old, crossPoint);
-                offspring.get(1).getChromosome().cross(parent1.getChromosome(), old, crossPoint);
+                offspring.get(0).getChromosome().cross((Chromosome) parent2.getChromosome(), old, crossPoint);
+                offspring.get(1).getChromosome().cross((Chromosome) parent1.getChromosome(), old, crossPoint);
             }
 
             int availableSpace = (parent1.getChromosome().getLength() - crossPoint);
@@ -72,15 +73,13 @@ public class NPointCrossover<T extends Individual<?>> implements Crossover<T> {
         int chromLength = parent1.getChromosome().getLength() - 1;
 
         if (isOddTurn) {
-            offspring.get(0).getChromosome().cross(parent1.getChromosome(), crossPoint, chromLength);
-            offspring.get(1).getChromosome().cross(parent2.getChromosome(), crossPoint, chromLength);
+            offspring.get(0).getChromosome().cross((Chromosome) parent1.getChromosome(), crossPoint, chromLength);
+            offspring.get(1).getChromosome().cross((Chromosome) parent2.getChromosome(), crossPoint, chromLength);
         } else {
-            offspring.get(0).getChromosome().cross(parent2.getChromosome(), crossPoint, chromLength);
-            offspring.get(1).getChromosome().cross(parent1.getChromosome(), crossPoint, chromLength);
+            offspring.get(0).getChromosome().cross((Chromosome) parent2.getChromosome(), crossPoint, chromLength);
+            offspring.get(1).getChromosome().cross((Chromosome) parent1.getChromosome(), crossPoint, chromLength);
         }
 
         return offspring;
     }
-
-
 }

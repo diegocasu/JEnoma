@@ -234,7 +234,7 @@ public class Coordinator {
     }
 
     private boolean sendWorkloadsToErlangNode() {
-        Population<?> population = geneticAlgorithm.getPopulation();
+        Population population = geneticAlgorithm.getPopulation();
         List<String> workers = geneticAlgorithm.getConfiguration().getWorkers();
         int chunkSize = population.getLength() / workers.size();
 
@@ -250,7 +250,7 @@ public class Coordinator {
 
             GeneticAlgorithm workload = new GeneticAlgorithm(
                     geneticAlgorithm,
-                    new Population<>(new ArrayList<>(population.getIndividuals(i*chunkSize, endChunkIndex))));
+                    new Population(new ArrayList<>(population.getIndividuals(i*chunkSize, endChunkIndex))));
 
             workloads[i] = new OtpErlangBinary(workload);
         }
@@ -334,7 +334,7 @@ public class Coordinator {
     // TODO: remove test
     public static void main(String[] args) throws IOException {
         Configuration conf = new Configuration("configuration.json");
-        Population<Individual<Chromosome<Integer>>> population = new Population<>(new ArrayList<>());
+        Population population = new Population(new ArrayList<>());
 
         for (int i = 0; i < 23; i++) {
             List<Integer> genes = new ArrayList<>();
@@ -343,7 +343,7 @@ public class Coordinator {
             genes.add(i);
 
             Chromosome<Integer> chromosome = new Chromosome<>(genes);
-            Individual<Chromosome<Integer>> individual = new Individual<>(chromosome);
+            Individual individual = new Individual(chromosome);
             population.addIndividual(individual);
         }
 

@@ -5,7 +5,7 @@ import it.unipi.jenoma.population.Individual;
 import java.io.Serializable;
 
 
-public interface Evaluation<T extends Individual<?>> extends Serializable {
+public interface Evaluation extends Serializable {
 
-    double evaluate(T individual);
+    double evaluate(Individual individual);
 }

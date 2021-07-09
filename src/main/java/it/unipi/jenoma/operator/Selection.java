@@ -6,7 +6,7 @@ import it.unipi.jenoma.utils.PRNG;
 import java.io.Serializable;
 
 
-public interface Selection<T extends Population<?>> extends Serializable {
+public interface Selection extends Serializable {
 
-    T select(T population, PRNG prng);
+    Population select(Population population, PRNG prng);
 }

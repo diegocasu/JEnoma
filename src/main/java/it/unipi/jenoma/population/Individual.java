@@ -1,19 +1,21 @@
 package it.unipi.jenoma.population;
 
+import org.apache.commons.lang3.SerializationUtils;
+
 import java.io.Serializable;
 
 
-public class Individual<T extends Chromosome<?>> implements Comparable<Individual<T>>, Cloneable, Serializable {
-    private final T chromosome;
+public class Individual implements Comparable<Individual>, Serializable {
+    private final Chromosome<?> chromosome;
     private double fitness;
 
 
-    public Individual(T chromosome) {
+    public Individual(Chromosome<?> chromosome) {
         this.chromosome = chromosome;
         this.fitness = 0;
     }
 
-    public Chromosome getChromosome() {
+    public Chromosome<?> getChromosome() {
         return chromosome;
     }
 
@@ -26,28 +28,19 @@ public class Individual<T extends Chromosome<?>> implements Comparable<Individua
     }
 
     @Override
-    public int compareTo(Individual<T> o) {
+    public int compareTo(Individual o) {
         return Double.compare(this.fitness, o.getFitness());
     }
 
     @Override
     public String toString() {
-        return "it.unipi.jenoma.population.Individual{" +
-                "it.unipi.jenoma.population.Chromosome=" + chromosome +
+        return "Individual{" +
+                "chromosome=" + chromosome +
                 ", fitness=" + fitness +
                 '}';
     }
 
-    @Override
-    public Individual<T> clone() {
-        try {
-            super.clone();
-            Individual<T> i = new Individual<>((T)this.chromosome.clone());
-            i.setFitness(this.getFitness());
-            return i;
-        } catch (CloneNotSupportedException e) {
-            e.printStackTrace();
-            return null;
-        }
+    public Individual clone() {
+        return SerializationUtils.clone(this);
     }
 }

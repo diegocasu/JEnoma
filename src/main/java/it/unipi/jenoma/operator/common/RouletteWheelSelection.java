@@ -6,44 +6,35 @@ import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.PRNG;
 
 import java.util.ArrayList;
-import java.util.List;
 
-public class RouletteWheelSelection<T extends Population<?>> implements Selection<T> {
 
-    private T population;
-    private T matingPool;
-    private int chromosomeChosenForReproduction;
-    PRNG prng;
+public class RouletteWheelSelection implements Selection {
+    private final int chromosomeChosenForReproduction;
+
 
     public RouletteWheelSelection(int ccfr) {
         this.chromosomeChosenForReproduction = ccfr;
     }
 
     @Override
-    public T select(T population, PRNG prng) {
-        this.prng = prng;
-        if (this.matingPool != null)
-            this.matingPool.removeAll();
+    public Population select(Population population, PRNG prng) {
+        Population matingPool = new Population(new ArrayList<>(chromosomeChosenForReproduction));
 
-        this.population = (T) population.clone();
-        this.matingPool = (T) population.clone().removeAll();
-        for (int i = 0; i < this.chromosomeChosenForReproduction; i++) this.matingPool.addIndividual(select_helper());
-        return (T) this.matingPool;
-    }
+        for (int i = 0; i < this.chromosomeChosenForReproduction; i++) {
+            double populationFitness = population.getFitness();
+            double randomDouble = prng.nextDouble()*populationFitness;
+            double partialSum = 0;
 
-    public Individual<?> select_helper() {
-        double populationTotalFitness = this.population.getFitness();
-        double spinStartingPoint = this.prng.nextDouble(populationTotalFitness) / populationTotalFitness;
-        double offset = spinStartingPoint;
-        Individual chosenOne;
-        for (Individual i : this.population) {
-            offset += i.getFitness();
-            if (spinStartingPoint < offset) {
-                chosenOne = i.clone();
-                this.population.removeIndividual(i);
-                return chosenOne;
+            for (Individual individual : population) {
+                partialSum += individual.getFitness();
+
+                if (partialSum > randomDouble) {
+                    matingPool.addIndividual(individual);
+                    population.removeIndividual(individual);
+                }
             }
         }
-        return null;
+
+        return matingPool;
     }
 }
