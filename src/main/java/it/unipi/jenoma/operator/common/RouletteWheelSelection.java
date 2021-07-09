@@ -23,18 +23,24 @@ public class RouletteWheelSelection implements Selection {
     @Override
     public Population select(Population population, PRNG prng, ClusterLogger logger) {
         Population matingPool = new Population(new ArrayList<>(numberOfIndividuals));
+        double populationFitness = 0;
+
+        for (Individual individual : population)
+            populationFitness += individual.getFitness();
 
         for (int i = 0; i < this.numberOfIndividuals; i++) {
-            double populationFitness = population.getFitness();
             double randomDouble = prng.nextDouble()*populationFitness;
             double partialSum = 0;
 
-            for (Individual individual : population) {
+            for (int j = 0; j < population.getLength(); j++) {
+                Individual individual = population.getIndividual(j);
                 partialSum += individual.getFitness();
 
                 if (partialSum > randomDouble) {
                     matingPool.addIndividual(individual);
-                    population.removeIndividual(individual);
+                    population.removeIndividual(j);
+                    populationFitness -= individual.getFitness();
+                    break;
                 }
             }
         }

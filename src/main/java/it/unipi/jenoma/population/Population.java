@@ -9,27 +9,22 @@ import java.util.List;
 
 public class Population implements Iterable<Individual>, Serializable {
     private final List<Individual> individuals;
-    private double fitness;
 
 
     public Population(List<Individual> individuals) {
         this.individuals = individuals;
-        computeFitness();
     }
 
     public void addIndividual(Individual individual) {
         individuals.add(individual);
-        this.fitness += individual.getFitness();
     }
 
-    public void removeIndividual(Individual individual) {
-        this.fitness -= individual.getFitness();
-        individuals.remove(individual);
+    public void removeIndividual(int index) {
+        individuals.remove(index);
     }
 
-    public void removeAll() {
-        individuals.clear();
-        this.fitness = 0;
+    public void removeIndividuals(int fromIndex, int toIndex) {
+        individuals.subList(fromIndex, Math.min(toIndex, individuals.size())).clear();
     }
 
     public Iterator<Individual> iterator() {
@@ -63,23 +58,6 @@ public class Population implements Iterable<Individual>, Serializable {
 
         output.deleteCharAt(output.length() - 1);
         return output.toString();
-    }
-
-    public double getFitness() {
-        return fitness;
-    }
-
-    public void setFitness(double fitness) {
-        this.fitness = fitness;
-    }
-
-    public void computeFitness(){
-        double accumulator = 0;
-
-        for(Individual i : individuals)
-            accumulator += i.getFitness();
-
-        this.fitness = accumulator;
     }
 
     public int getLength() {
