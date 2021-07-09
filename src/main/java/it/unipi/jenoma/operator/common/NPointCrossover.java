@@ -1,6 +1,6 @@
 package it.unipi.jenoma.operator.common;
 
-import it.unipi.jenoma.algorithm.AlgorithmException;
+import it.unipi.jenoma.cluster.ClusterLogger;
 import it.unipi.jenoma.operator.Crossover;
 import it.unipi.jenoma.population.Chromosome;
 import it.unipi.jenoma.population.Individual;
@@ -27,28 +27,37 @@ import java.util.List;
     |________________________________________
  */
 public class NPointCrossover implements Crossover {
-    private int n;
+    private final int n;
 
 
     public NPointCrossover(int n) {
+        if (n <= 0)
+            throw new IllegalArgumentException("The number of split points must be greater than 0.");
+
         this.n = n;
     }
 
     @Override
-    public List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng) {
+    public List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger) {
         List<Individual> offspring = new ArrayList<>();
-        offspring.add(parent1);
-        offspring.add(parent2);
 
         if (parent1.getChromosome().getLength() != parent2.getChromosome().getLength()) {
-            throw new AlgorithmException("NPOINTCROSSOVER: requested " + this.n +
-                    "-Point Crossover n differently sized parents");
+            logger.log(String.format(
+                    "Cannot perform crossover on parents with different chromosome length [%s != %s].",
+                    parent1.getChromosome().getLength(), parent2.getChromosome().getLength()));
+            return offspring;
         }
 
         if (this.n > parent1.getChromosome().getLength()) {
-            throw new AlgorithmException("NPOINTCROSSOVER: requested " + this.n + "-Point Crossover on an " +
-                    parent1.getChromosome().getLength() + " genes chromosome");
+            logger.log(String.format(
+                    "Cannot perform %s-point crossover on chromosome of length %s.",
+                    this.n, parent1.getChromosome().getLength()));
+            return offspring;
         }
+
+        offspring.add(parent1);
+        offspring.add(parent2);
+
         int crossPoint = 0;
         int old = 0;
         int maxPartitionSize = parent1.getChromosome().getLength() - (this.n - 1);

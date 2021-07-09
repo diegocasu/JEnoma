@@ -1,5 +1,6 @@
 package it.unipi.jenoma.operator;
 
+import it.unipi.jenoma.cluster.ClusterLogger;
 import it.unipi.jenoma.population.Individual;
 
 import java.io.Serializable;
@@ -7,5 +8,5 @@ import java.io.Serializable;
 
 public interface Evaluation extends Serializable {
 
-    double evaluate(Individual individual);
+    double evaluate(Individual individual, ClusterLogger logger);
 }

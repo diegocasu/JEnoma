@@ -1,6 +1,6 @@
 package it.unipi.jenoma.operator.common;
 
-import it.unipi.jenoma.algorithm.AlgorithmException;
+import it.unipi.jenoma.cluster.ClusterLogger;
 import it.unipi.jenoma.operator.Selection;
 import it.unipi.jenoma.population.Individual;
 import it.unipi.jenoma.population.Population;
@@ -13,30 +13,38 @@ import java.util.Set;
 
 
 public class TournamentSelection implements Selection {
-    private final int chromosomeChosenForReproduction;
-    private final int candidateSelectedForTournament;
+    private final int numberOfIndividuals;
+    private final int tournamentSize;
 
 
-    public TournamentSelection(int chromosomeChosenForReproduction, int candidateSelectedForTournament) {
-        this.chromosomeChosenForReproduction = chromosomeChosenForReproduction;
-        this.candidateSelectedForTournament = candidateSelectedForTournament;
+    public TournamentSelection(int numberOfIndividuals, int tournamentSize) {
+        if (numberOfIndividuals <= 0)
+            throw new IllegalArgumentException("The number of individuals to select must be greater than 0.");
+
+        if (tournamentSize <= 0)
+            throw new IllegalArgumentException("The number of individuals in a tournament must be greater than 0.");
+
+        this.numberOfIndividuals = numberOfIndividuals;
+        this.tournamentSize = tournamentSize;
     }
 
     @Override
-    public Population select(Population population, PRNG prng) {
-        if (this.candidateSelectedForTournament > population.getLength()) {
-            throw new AlgorithmException("TOURNAMENTSELECTION: Number of candidates selected for tournament exceeding " +
-                                         "population length");
+    public Population select(Population population, PRNG prng, ClusterLogger logger) {
+        if (this.tournamentSize > population.getLength()) {
+            logger.log(String.format(
+                    "The number of candidates selected for tournament [%s] exceeds the population length [%s].",
+                    tournamentSize, population.getLength()));
+            return new Population(new ArrayList<>());
         }
 
-        Population matingPool = new Population(new ArrayList<>(chromosomeChosenForReproduction));
+        Population matingPool = new Population(new ArrayList<>(numberOfIndividuals));
 
-        for (int i = 0; i < this.chromosomeChosenForReproduction; i++) {
-            List<Individual> tournamentCandidates = new ArrayList<>(candidateSelectedForTournament);
-            Set<Integer> extracted = new HashSet<>(candidateSelectedForTournament);
+        for (int i = 0; i < this.numberOfIndividuals; i++) {
+            List<Individual> tournamentCandidates = new ArrayList<>(tournamentSize);
+            Set<Integer> extracted = new HashSet<>(tournamentSize);
             int j = 0;
 
-            while (j < candidateSelectedForTournament) {
+            while (j < tournamentSize) {
                 int index = prng.nextInt(population.getLength());
 
                 if (extracted.contains(index))

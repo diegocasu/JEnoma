@@ -1,5 +1,6 @@
 package it.unipi.jenoma.operator.common;
 
+import it.unipi.jenoma.cluster.ClusterLogger;
 import it.unipi.jenoma.operator.TerminationCondition;
 import it.unipi.jenoma.population.Population;
 
@@ -11,16 +12,19 @@ public class NGenerationsElapsed implements TerminationCondition<Boolean> {
 
 
     public NGenerationsElapsed(int maxNumberOfGenerations) {
+        if (maxNumberOfGenerations <= 0)
+            throw new IllegalArgumentException("The number of generations must be greater than 0.");
+
         this.maxNumberOfGenerations = maxNumberOfGenerations;
     }
 
     @Override
-    public Boolean map(Population population, int numberOfIterations) {
+    public Boolean map(Population population, int numberOfIterations, ClusterLogger logger) {
         return maxNumberOfGenerations > numberOfIterations;
     }
 
     @Override
-    public boolean end(List<Boolean> partialConditions) {
+    public boolean end(List<Boolean> partialConditions, ClusterLogger logger) {
         return partialConditions.get(0);
     }
 }
