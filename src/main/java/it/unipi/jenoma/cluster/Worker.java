@@ -59,6 +59,10 @@ class Worker {
         javaNode.close();
     }
 
+    private void stopWorkerLogger() {
+        workerLogger.stop();
+    }
+
     private void sendHeartbeatToErlangNode() {
         mailBox.send(
                 ClusterUtils.Process.WORKER,
@@ -74,6 +78,7 @@ class Worker {
 
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(stopAtom)) {
                 workerLogger.log("Stopping the execution.");
+                stopWorkerLogger();
                 stopJavaNode();
                 return;
             }
@@ -94,7 +99,7 @@ class Worker {
 
         if (!startJavaNode()) {
             workerLogger.log("Java node failed to start.");
-            workerLogger.stop();
+            stopWorkerLogger();
             return;
         }
 
@@ -105,6 +110,7 @@ class Worker {
             receiveLoop();
         } catch (OtpErlangDecodeException | OtpErlangExit e) {
             workerLogger.log(ExceptionUtils.getStackTrace(e));
+            stopWorkerLogger();
             stopJavaNode();
         }
     }
