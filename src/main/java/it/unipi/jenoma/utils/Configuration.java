@@ -11,12 +11,13 @@ import java.util.List;
 
 
 public class Configuration implements Serializable {
-    private String filePath;
+    private final String filePath;
     private String jarPath;
     private String sshKeyFolder;
     private String sshUser;
     private String coordinator;
     private List<String> workers;
+    private int timeoutSetupCluster;
     private int timeoutWorker;
     private int seed;
 
@@ -28,6 +29,7 @@ public class Configuration implements Serializable {
         this.coordinator = parsedConfiguration.getCoordinator();
         this.workers = parsedConfiguration.getWorkers();
         this.timeoutWorker = parsedConfiguration.getTimeoutWorker();
+        this.timeoutSetupCluster = parsedConfiguration.getTimeoutSetupCluster();
         this.seed = parsedConfiguration.getSeed();
         this.jarPath = parsedConfiguration.getJarPath();
         this.sshKeyFolder = parsedConfiguration.getSshKeyFolder();
@@ -63,6 +65,10 @@ public class Configuration implements Serializable {
 
     public List<String> getWorkers() {
         return workers;
+    }
+
+    public int getTimeoutSetupCluster() {
+        return timeoutSetupCluster;
     }
 
     public int getTimeoutWorker() {

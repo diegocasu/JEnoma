@@ -101,7 +101,7 @@ public class Coordinator {
 
         // Wait for a heartbeat sent by the spawned Erlang process.
         try {
-            OtpErlangAtom msg = (OtpErlangAtom) mailBox.receive(geneticAlgorithm.getConfiguration().getTimeoutWorker());
+            OtpErlangAtom msg = (OtpErlangAtom) mailBox.receive(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster());
 
             if (msg == null || !msg.equals(new OtpErlangAtom("heartbeat")))
                 return false;
@@ -211,6 +211,7 @@ public class Coordinator {
                 new OtpErlangObject[] {
                         initClusterCmd,
                         new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
+                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
                         new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker())
         });
 

@@ -7,7 +7,8 @@
   java_coordinator_process,
   java_coordinator_name,
   workers,
-  timeout
+  timeout_setup_cluster,
+  timeout_worker
 }).
 
 
@@ -21,8 +22,12 @@ init(State) ->
   {State#state.java_coordinator_process, State#state.java_coordinator_name} ! heartbeat,
 
   receive
-    {InitClusterCmd, Workers, Timeout} ->
-      NewState = State#state{workers = Workers, timeout = Timeout},
+    {InitClusterCmd, Workers, TimeoutSetupCluster, TimeoutWorker} ->
+      NewState = State#state{
+        workers = Workers,
+        timeout_setup_cluster = TimeoutSetupCluster,
+        timeout_worker = TimeoutWorker
+      },
 
       spawn(fun() -> os:cmd(InitClusterCmd) end),
       wait_for_cluster_setup(length(Workers), NewState),
@@ -40,7 +45,7 @@ wait_for_cluster_setup(MissingWorkers, State) ->
   receive
     heartbeat ->
       wait_for_cluster_setup(MissingWorkers - 1, State)
-  after State#state.timeout ->
+  after State#state.timeout_setup_cluster ->
     {State#state.java_coordinator_process, State#state.java_coordinator_name} ! cluster_timeout,
     stop_cluster(State#state.workers),
     stop(cluster_setup_timeout)
