@@ -36,7 +36,6 @@ class CoordinatorLogger implements Runnable {
 
     @Override
     public void run() {
-        OtpErlangAtom stopAtom = new OtpErlangAtom("stop");
         OtpErlangObject msg;
 
         while(true) {
@@ -47,7 +46,7 @@ class CoordinatorLogger implements Runnable {
                 continue;
             }
 
-            if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(stopAtom)) {
+            if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.STOP)) {
                 stopNode();
                 return;
             }

@@ -1,5 +1,6 @@
 package it.unipi.jenoma.cluster;
 
+import com.ericsson.otp.erlang.OtpErlangAtom;
 import it.unipi.jenoma.utils.Configuration;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -37,6 +38,14 @@ class ClusterUtils {
         public static final String MODULES_DIRECTORY = "ebin";
         public static final String COORDINATOR_MODULE = "coordinator";
         public static final String WORKER_MODULE = "worker";
+    }
+
+    public static class Atom {
+        public static final OtpErlangAtom HEARTBEAT = new OtpErlangAtom("heartbeat");
+        public static final OtpErlangAtom STOP = new OtpErlangAtom("stop");
+        public static final OtpErlangAtom CLUSTER_READY = new OtpErlangAtom("cluster_ready");
+        public static final OtpErlangAtom INIT_PHASE = new OtpErlangAtom("init_phase");
+        public static final OtpErlangAtom CLUSTER_SETUP_PHASE = new OtpErlangAtom("cluster_setup_phase");
     }
 
 

@@ -102,8 +102,7 @@ public class Coordinator {
         // Wait for a heartbeat sent by the spawned Erlang process.
         try {
             OtpErlangAtom msg = (OtpErlangAtom) mailBox.receive(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster());
-
-            if (msg == null || !msg.equals(new OtpErlangAtom("heartbeat")))
+            if (msg == null || !msg.equals(ClusterUtils.Atom.HEARTBEAT))
                 return false;
         } catch (OtpErlangDecodeException | OtpErlangExit e) {
             localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
@@ -133,23 +132,23 @@ public class Coordinator {
         javaNode.close();
     }
 
-    private void stopErlangNode() {
+    private void stopErlangNode(OtpErlangAtom phase) {
         mailBox.send(
                 ClusterUtils.Process.COORDINATOR,
                 ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangAtom("stop"));
+                new OtpErlangTuple(new OtpErlangObject[]{ phase, ClusterUtils.Atom.STOP }));
     }
 
     private void stopCoordinatorLogger() {
         mailBox.send(
                 ClusterUtils.Process.LOGGER,
                 ClusterUtils.compose(ClusterUtils.Node.LOGGER, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangAtom("stop"));
+                ClusterUtils.Atom.STOP);
         loggerExecutor.shutdown();
     }
 
-    private void stopAllNodes() {
-        stopErlangNode();
+    private void stopAllNodes(OtpErlangAtom phase) {
+        stopErlangNode(phase);
         stopCoordinatorLogger();
         stopJavaNode();
     }
@@ -178,7 +177,7 @@ public class Coordinator {
 
         if (!startCoordinatorLogger()) {
             localLogger.log(Level.INFO, "Logger failed to start.");
-            stopErlangNode();
+            stopErlangNode(ClusterUtils.Atom.INIT_PHASE);
             stopJavaNode();
             return false;
         }
@@ -186,7 +185,7 @@ public class Coordinator {
 
         if (!ClusterUtils.createClusterInitScript(geneticAlgorithm.getConfiguration(), localLogger)) {
             localLogger.log(Level.INFO, "Error while creating the cluster initialization script.");
-            stopAllNodes();
+            stopAllNodes(ClusterUtils.Atom.INIT_PHASE);
             return false;
         }
 
@@ -209,6 +208,7 @@ public class Coordinator {
 
         OtpErlangTuple msg = new OtpErlangTuple(
                 new OtpErlangObject[] {
+                        ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
                         initClusterCmd,
                         new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
                         new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
@@ -231,7 +231,7 @@ public class Coordinator {
             return false;
         }
 
-        return msg.equals(new OtpErlangAtom("cluster_ready"));
+        return msg.equals(ClusterUtils.Atom.CLUSTER_READY);
     }
 
     private boolean sendWorkloadsToErlangNode() {
@@ -264,8 +264,11 @@ public class Coordinator {
         mailBox.send(
                 ClusterUtils.Process.COORDINATOR,
                 ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangList(workloads));
-
+                new OtpErlangTuple(
+                        new OtpErlangObject[] {
+                                ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
+                                new OtpErlangList(workloads)
+                        }));
         return true;
     }
 
@@ -296,7 +299,7 @@ public class Coordinator {
         if (!clusterReady) {
             localLogger.log(Level.INFO, "Timeout: the cluster failed to start.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
-            stopAllNodes();
+            stopAllNodes(ClusterUtils.Atom.CLUSTER_SETUP_PHASE);
             return;
         }
 
@@ -307,7 +310,7 @@ public class Coordinator {
         if (!workloadsSent) {
             localLogger.log(Level.INFO, "Failed to send the workloads.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
-            stopAllNodes();
+            stopAllNodes(ClusterUtils.Atom.CLUSTER_SETUP_PHASE);
             return;
         }
 

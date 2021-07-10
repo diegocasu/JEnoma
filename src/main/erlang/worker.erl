@@ -1,7 +1,7 @@
 -module(worker).
 
 %% API
--export([start/1, init/1]).
+-export([start/1, main/1]).
 
 -record(state, {
   erlang_coordinator_process,
@@ -20,38 +20,33 @@ start(Args) ->
     java_worker_process = lists:nth(5, Args),
     java_worker_name = lists:nth(6, Args)
   },
-  register(lists:nth(1, Args), spawn(?MODULE, init, [State])).
+  register(lists:nth(1, Args), spawn(?MODULE, main, [State])),
 
-init(State) ->
   ThisHost = lists:nth(2, string:tokens(atom_to_list(node()), "@")),
   LoggerCoordinatorHost = lists:nth(2, string:tokens(atom_to_list(State#state.erlang_coordinator_name), "@")),
-  JavaNodeCmd = io_lib:format(
-    "java -cp ~s it.unipi.jenoma.cluster.Worker ~s ~s",
-    [State#state.jar_file, ThisHost, LoggerCoordinatorHost]),
+  JavaNodeCmd = io_lib:format("java -cp ~s it.unipi.jenoma.cluster.Worker ~s ~s", [State#state.jar_file, ThisHost, LoggerCoordinatorHost]),
+  spawn(fun() -> os:cmd(lists:flatten(JavaNodeCmd)) end).
 
-  spawn(fun() -> os:cmd(lists:flatten(JavaNodeCmd)) end),
 
-  receive
-    heartbeat ->
-      {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} ! heartbeat,
-      main_loop(State);
-    stop ->
-      stop_java_node(State),
-      stop(stopped_by_coordinator)
-  end.
-
-main_loop(State) ->
+main(State) ->
   receive
     stop ->
       stop_java_node(State),
       stop(stopped_by_coordinator);
-    Workload ->
+
+    heartbeat ->
+      {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} ! heartbeat,
+      main(State);
+
+    {cluster_setup_phase, Workload} ->
       {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
-      main_loop(State)
+      main(State)
   end.
+
 
 stop_java_node(State) ->
   {State#state.java_worker_process, State#state.java_worker_name} ! stop.
+
 
 stop(Reason) ->
   init:stop(),
