@@ -6,6 +6,7 @@
 - Maven installed only on the coordinator.
 - The ```PATH``` variable of all the machines must be set so that the commands
   ```java, jar, ssh, scp, mvn``` can be executed directly from the shell.
+- If the coordinator is a Linux machine, the shell process must be invocable with the command ```sh```.
   
 ## Installation
 - Give a symbolic name to each machine of the cluster. In the following, it is assumed that the workers 
@@ -33,6 +34,7 @@
       ...
       "workerN"
     ],
+    "timeoutSetupCluster": 10000,
     "timeoutWorker": 100000,
     "seed": 1
   }
@@ -40,5 +42,5 @@
   The timeout is in milliseconds.
 - Run the program:
   ```bash
-    java -cp target/jenoma-1.0-jar-with-dependencies.jar it.unipi.jenoma.cluster.Coordinator
+    sudo java -cp target/jenoma-1.0-jar-with-dependencies.jar it.unipi.jenoma.cluster.Coordinator
   ```
