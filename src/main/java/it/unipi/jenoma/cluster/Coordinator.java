@@ -59,7 +59,7 @@ public class Coordinator {
 
     private boolean startEPMD() {
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(ClusterUtils.getShellCommandStartEPMD());
+        processBuilder.command(ClusterUtils.getProcessCommandStartEPMD());
 
         try {
             Process process = processBuilder.start();
@@ -90,7 +90,7 @@ public class Coordinator {
 
     private boolean startErlangNode() {
         ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(ClusterUtils.getShellCommandStartErlangCoordinator(geneticAlgorithm.getConfiguration()));
+        processBuilder.command(ClusterUtils.getProcessCommandCommandStartErlangCoordinator(geneticAlgorithm.getConfiguration()));
 
         try {
             processBuilder.start();

@@ -40,7 +40,7 @@ class ClusterUtils {
     }
 
 
-    private static List<String> getShellCommandPrefix() {
+    private static List<String> getProcessCommandStartShell() {
         List<String> command = new ArrayList<>();
 
         if (SystemUtils.IS_OS_WINDOWS) {
@@ -51,7 +51,7 @@ class ClusterUtils {
         return command;
     }
 
-    private static String asBackgroundCommand(String command) {
+    private static String asBackgroundShellCommand(String command) {
         if (SystemUtils.IS_OS_WINDOWS) {
             return "start /B " + command;
         } else
@@ -127,14 +127,14 @@ class ClusterUtils {
                 ClusterUtils.compose(Node.JAVA, worker));
     }
 
-    public static List<String> getShellCommandStartEPMD() {
-        List<String> command = new ArrayList<>(getShellCommandPrefix());
+    public static List<String> getProcessCommandStartEPMD() {
+        List<String> command = new ArrayList<>(getProcessCommandStartShell());
         Collections.addAll(command, "epmd", "-daemon");
         return command;
     }
 
-    public static List<String> getShellCommandStartErlangCoordinator(Configuration configuration) {
-        List<String> command = new ArrayList<>(getShellCommandPrefix());
+    public static List<String> getProcessCommandCommandStartErlangCoordinator(Configuration configuration) {
+        List<String> command = new ArrayList<>(getProcessCommandStartShell());
         Collections.addAll(command,
                 "erl",
                 "-noshell",
@@ -153,7 +153,6 @@ class ClusterUtils {
 
     public static boolean createClusterInitScript(Configuration configuration, Logger logger) {
         String scriptName = Cluster.INIT_SCRIPT + getScriptFileExtension();
-        String deleteOutputFile = getClusterInitScriptDeleteFile("output");
 
         try {
             // Clean file if it already exists.
@@ -161,9 +160,12 @@ class ClusterUtils {
             writer.close();
 
             writer = new BufferedWriter(new FileWriter(scriptName, true));
-            writer.append("echo \"%%%%%% If an SSH command is successful, " +
-                    "but hangs, press ENTER to continue the execution %%%%%%\"");
-            writer.newLine();
+
+            if (SystemUtils.IS_OS_WINDOWS) {
+                writer.append("echo \"%%%%%% If an SSH command is successful, " +
+                        "but hangs, press ENTER to continue the execution %%%%%%\"");
+                writer.newLine();
+            }
 
             for (String worker : configuration.getWorkers()) {
                 writer.append(getClusterInitScriptMkdir(configuration, worker));
@@ -175,11 +177,11 @@ class ClusterUtils {
                 writer.append(getClusterInitScriptJar(configuration, worker));
                 writer.newLine();
 
-                writer.append(asBackgroundCommand(getClusterInitScriptErl(configuration, worker)));
+                writer.append(asBackgroundShellCommand(getClusterInitScriptErl(configuration, worker)));
                 writer.newLine();
             }
 
-            writer.append(deleteOutputFile);
+            writer.append(getClusterInitScriptDeleteFile("output"));
             writer.newLine();
 
             writer.append("exit");
@@ -201,7 +203,7 @@ class ClusterUtils {
         if (SystemUtils.IS_OS_WINDOWS) {
             Collections.addAll(command,"start", "/wait", scriptName);
         } else
-            Collections.addAll(command,"sh", "./" + scriptName);
+            Collections.addAll(command,"chmod", "+x", scriptName, "&&", "./" + scriptName);
 
         return command;
     }
