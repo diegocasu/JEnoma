@@ -46,7 +46,7 @@ class ClusterUtils {
         if (SystemUtils.IS_OS_WINDOWS) {
             Collections.addAll(command,"cmd", "/c");
         } else
-            Collections.addAll(command,"sh", "-c");
+            Collections.addAll(command,"bash");
 
         return command;
     }

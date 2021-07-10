@@ -6,7 +6,7 @@
 - Maven installed only on the coordinator.
 - The ```PATH``` variable of all the machines must be set so that the commands
   ```java, jar, ssh, scp, mvn``` can be executed directly from the shell.
-- If the coordinator is a Linux machine, the shell process must be invocable with the command ```sh```.
+- If the coordinator is a Linux machine, the shell process must be invocable with the command ```bash```.
   
 ## Installation
 - Give a symbolic name to each machine of the cluster. In the following, it is assumed that the workers 
@@ -24,7 +24,7 @@
 - Prepare a JSON configuration file ```configuration.json```, placed in the same directory of the project,
   with the following structure:
   ```
-   {
+  {
     "jarPath": "./target/jenoma-1.0-jar-with-dependencies.jar",
     "sshKeyFolder": "your_path/your_SSH_key_folder",
     "sshUser": "jenoma",
