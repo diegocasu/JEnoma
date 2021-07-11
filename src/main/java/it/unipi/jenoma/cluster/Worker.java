@@ -101,13 +101,13 @@ class Worker {
 
     private Pair<PRNG, List<PRNG>> createPRNGs(int seed) {
         // Create one main PRNG for generating values outside threads and N to do it inside threads.
-        int baseSeed = Objects.hash(ClusterUtils.compose(ClusterUtils.Node.JAVA, host), seed);
+        int hostSeed = Objects.hash(ClusterUtils.compose(ClusterUtils.Node.JAVA, host), seed);
 
-        PRNG mainGenerator = new PRNG(baseSeed);
+        PRNG mainGenerator = new PRNG(hostSeed);
         List<PRNG> threadGenerators = new ArrayList<>();
 
         for (int i = 1; i <= numberOfThreads; i++)
-            threadGenerators.add(new PRNG(baseSeed + i));
+            threadGenerators.add(new PRNG(hostSeed + i));
 
         return new ImmutablePair<>(mainGenerator, threadGenerators);
     }
