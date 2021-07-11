@@ -13,10 +13,7 @@ import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
 
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
-import it.unipi.jenoma.population.Chromosome;
-import it.unipi.jenoma.population.Individual;
 import it.unipi.jenoma.population.Population;
-import it.unipi.jenoma.utils.Configuration;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
@@ -212,8 +209,9 @@ public class Coordinator {
                         initClusterCmd,
                         new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
                         new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
-                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker())
-        });
+                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker()),
+                        new OtpErlangInt(geneticAlgorithm.getElitism().getNumberOfIndividuals())
+                });
 
         mailBox.send(
                 ClusterUtils.Process.COORDINATOR,
@@ -272,23 +270,74 @@ public class Coordinator {
         return true;
     }
 
+    private void sendTerminationResult(OtpErlangAtom terminationResult) {
+        mailBox.send(
+                ClusterUtils.Process.COORDINATOR,
+                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
+                new OtpErlangTuple(new OtpErlangObject[]{ ClusterUtils.Atom.GENERATION_END_PHASE, terminationResult }));
+    }
+
+    private Population waitForTermination() throws OtpErlangDecodeException, OtpErlangExit {
+        Population finalPopulation = new Population(new ArrayList<>());
+        ClusterLogger terminationConditionLogger = log -> localLogger.log(Level.INFO, log);
+        OtpErlangObject msg;
+
+        while (true) {
+            msg = mailBox.receive();
+
+            if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.COMPUTATION_FAILED)) {
+                localLogger.log(Level.INFO, "Timeout: at least one worker did not reply.");
+                localLogger.log(Level.INFO, "The computation failed. Shutting down.");
+                return finalPopulation;
+            }
+
+            if (msg instanceof OtpErlangTuple msgTuple) {
+                if (msgTuple.elementAt(0).equals(ClusterUtils.Atom.TERMINATION_CONDITIONS)) {
+                    List partialConditions = new ArrayList<>();
+
+                    for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1))
+                        partialConditions.add(((OtpErlangBinary) element).getObject());
+
+                    if (geneticAlgorithm.getTerminationCondition().end(partialConditions, terminationConditionLogger)) {
+                        localLogger.log(Level.INFO, "Termination condition met. Collecting the population.");
+                        sendTerminationResult(ClusterUtils.Atom.ALGORITHM_END);
+                    }
+                    else {
+                        localLogger.log(Level.INFO, "Termination condition not met. Starting the next iteration.");
+                        sendTerminationResult(ClusterUtils.Atom.ALGORITHM_CONTINUE);
+                    }
+                    continue;
+                }
+
+                if (msgTuple.elementAt(0).equals(ClusterUtils.Atom.FINAL_POPULATION)) {
+                    for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1)) {
+                        Population populationChunk = (Population) ((OtpErlangBinary) element).getObject();
+                        finalPopulation.addIndividuals(populationChunk.getIndividuals(0, populationChunk.getLength()));
+                    }
+                    return finalPopulation;
+                }
+            }
+        }
+    }
+
     public Coordinator(GeneticAlgorithm geneticAlgorithm) {
         this.geneticAlgorithm = geneticAlgorithm;
         this.localLogger = Logger.getLogger(LOGGER_NAME);
     }
 
-    public void start() {
+    public Population start() {
+        Population finalPopulation = new Population(new ArrayList<>());
         loadLoggerConfiguration();
 
         if (noWorkersRegistered()) {
             localLogger.log(Level.INFO, "No workers specified in the configuration file.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
-            return;
+            return finalPopulation;
         }
 
         if (!startCoordinator()) {
             localLogger.log(Level.INFO, "Stopping the initialization.");
-            return;
+            return finalPopulation;
         }
 
         localLogger.log(Level.INFO, "Initialization performed successfully.");
@@ -300,7 +349,7 @@ public class Coordinator {
             localLogger.log(Level.INFO, "Timeout: the cluster failed to start.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
             stopAllNodes(ClusterUtils.Atom.CLUSTER_SETUP_PHASE);
-            return;
+            return finalPopulation;
         }
 
         localLogger.log(Level.INFO, "Cluster initialized successfully.");
@@ -311,52 +360,18 @@ public class Coordinator {
             localLogger.log(Level.INFO, "Failed to send the workloads.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
             stopAllNodes(ClusterUtils.Atom.CLUSTER_SETUP_PHASE);
-            return;
+            return finalPopulation;
         }
 
         localLogger.log(Level.INFO, "Workloads sent successfully.");
 
         try {
-            //TODO: remove. Used only for testing, so that the node is not closed before workers can send logs.
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            finalPopulation = waitForTermination();
+        } catch (OtpErlangDecodeException | OtpErlangExit e) {
+            localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
         }
 
-        OtpErlangAtom msg;
-        while(true) {
-            try {
-                msg = (OtpErlangAtom) mailBox.receive();
-            } catch (OtpErlangDecodeException | OtpErlangExit e) {
-                localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
-                return;
-            }
-
-            if (msg.equals(new OtpErlangAtom("end_computation"))) {
-                stopJavaNode();
-                stopCoordinatorLogger();
-                return;
-            }
-        }
-    }
-
-    // TODO: remove test
-    public static void main(String[] args) throws IOException {
-        Configuration conf = new Configuration("configuration.json");
-        Population population = new Population(new ArrayList<>());
-
-        for (int i = 0; i < 23; i++) {
-            List<Integer> genes = new ArrayList<>();
-            genes.add(i);
-            genes.add(i);
-            genes.add(i);
-
-            Chromosome<Integer> chromosome = new Chromosome<>(genes);
-            Individual individual = new Individual(chromosome);
-            population.addIndividual(individual);
-        }
-
-        Coordinator c = new Coordinator(new GeneticAlgorithm(conf, population));
-        c.start();
+        stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
+        return finalPopulation;
     }
 }
