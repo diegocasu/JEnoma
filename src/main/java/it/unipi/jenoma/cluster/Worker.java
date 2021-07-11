@@ -395,8 +395,11 @@ class Worker {
             }
             workerLogger.log("The evaluation stage succeeded.");
 
-            applyElitism(geneticAlgorithm.getPopulation(), offspring, geneticAlgorithm.getElitism());
-            workerLogger.log("The elitism stage succeeded.");
+            if (geneticAlgorithm.getElitism().getNumberOfIndividuals() > 0) {
+                applyElitism(geneticAlgorithm.getPopulation(), offspring, geneticAlgorithm.getElitism());
+                workerLogger.log("The elitism stage succeeded.");
+            } else
+                workerLogger.log("Elitism stage skipped.");
 
             geneticAlgorithm.incrementGenerations();
             workerLogger.log(String.format("Reached generation %s.", geneticAlgorithm.getGenerationsElapsed()));
