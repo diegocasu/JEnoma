@@ -13,15 +13,15 @@ import java.io.Serializable;
 
 
 public class GeneticAlgorithm implements Serializable {
+    private final Configuration configuration;
+    private final Evaluation evaluation;
+    private final Selection selection;
+    private final Crossover crossover;
+    private final Mutation mutation;
+    private final TerminationCondition<?> terminationCondition;
+    private final Elitism elitism;
     private int generationsElapsed;
-    private Configuration configuration;
     private Population population;
-    private Evaluation evaluation;
-    private Selection selection;
-    private Crossover crossover;
-    private Mutation mutation;
-    private TerminationCondition<?> terminationCondition;
-    private Elitism elitism;
 
 
     private void checkNullFields() {
@@ -70,13 +70,7 @@ public class GeneticAlgorithm implements Serializable {
         this.elitism = algorithm.elitism;
         this.generationsElapsed = algorithm.generationsElapsed;
         this.population = population;
-        //checkNullFields();  //TODO: uncomment
-    }
-
-    // TODO: remove this constructor used for convenience.
-    public GeneticAlgorithm(Configuration conf, Population population) {
-        this.configuration = conf;
-        this.population = population;
+        checkNullFields();
     }
 
     public Configuration getConfiguration() {
