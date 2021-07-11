@@ -141,7 +141,7 @@ public class GeneticAlgorithm implements Serializable {
         this.population = population;
     }
 
-    public void incrementGenerations() {
+    public void incrementGenerationsElapsed() {
         this.generationsElapsed += 1;
     }
 }

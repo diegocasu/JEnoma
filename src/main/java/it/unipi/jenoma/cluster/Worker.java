@@ -401,7 +401,7 @@ class Worker {
             } else
                 workerLogger.log("Elitism stage skipped.");
 
-            geneticAlgorithm.incrementGenerations();
+            geneticAlgorithm.incrementGenerationsElapsed();
             workerLogger.log(String.format("Reached generation %s.", geneticAlgorithm.getGenerationsElapsed()));
 
             if (endAlgorithm(offspring, geneticAlgorithm.getGenerationsElapsed(), geneticAlgorithm.getTerminationCondition()))
