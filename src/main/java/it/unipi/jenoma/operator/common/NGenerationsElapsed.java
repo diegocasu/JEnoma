@@ -20,7 +20,7 @@ public class NGenerationsElapsed implements TerminationCondition<Boolean> {
 
     @Override
     public Boolean map(Population population, int generationsElapsed, ClusterLogger logger) {
-        return maxNumberOfGenerations > generationsElapsed;
+        return generationsElapsed >= maxNumberOfGenerations;
     }
 
     @Override
