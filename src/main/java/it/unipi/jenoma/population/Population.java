@@ -50,6 +50,12 @@ public class Population implements Iterable<Individual>, Serializable {
 
     @Override
     public String toString() {
+        if (individuals == null)
+            return "NULL";
+
+        if (individuals.size() == 0)
+            return "[]";
+
         StringBuilder output = new StringBuilder();
 
         for (Individual individual : individuals) {

@@ -55,6 +55,12 @@ public class Chromosome<T extends Serializable> implements Iterable<T>, Serializ
 
     @Override
     public String toString() {
+        if (genes == null)
+            return "NULL";
+
+        if (genes.size() == 0)
+            return "[]";
+
         StringBuilder output = new StringBuilder();
         output.append("[");
 
