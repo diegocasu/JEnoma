@@ -12,6 +12,27 @@ import it.unipi.jenoma.utils.Configuration;
 import java.io.Serializable;
 
 
+/**
+ * Class representing a genetic algorithm, defined as the collection of a population and a sequence
+ * of stages operating on its individuals.<br>
+ * Given a starting population, the latter is split into (possibly) equal chunks, which are sent
+ * to the remote machines. Called <code>initialPopulation</code> one of these chunks, a remote machine
+ * executes the stages as follows:<br>
+ * 1) the <code>initialPopulation</code> is evaluated using the <code>Evaluation</code> operator.
+ *    The <code>initialPopulation</code> becomes the <code>workingPopulation</code>;<br>
+ * 2) the <code>Selection</code> operator is applied to the <code>workingPopulation</code>,
+ *    obtaining a <code>matingPool</code>;<br>
+ * 3) the <code>Crossover</code> operator is applied to the <code>matingPool</code>, obtaining
+ *    an <code>offspring</code>;<br>
+ * 4) the <code>offspring</code> undergoes <code>Mutation</code>;<br>
+ * 5) the <i>N</i> fittest individuals of the cluster-wide <code>workingPopulation</code> substitute the
+ *    <i>N</i> worst individuals of the cluster-wide <code>offspring</code>,
+ *    as specified by <code>Elitism</code>;<br>
+ * 6) the <code>TerminationCondition</code> is checked with a map-reduce approach.
+ *    If true, the algorithm ends; if false, <code>offsrping</code> becomes the
+ *    new <code>workingPopulation</code> and everything restarts from point 2.<br>
+ * The overall size of the population across generations is guaranteed to stay the same of the initial one.
+ */
 public class GeneticAlgorithm implements Serializable {
     private final Configuration configuration;
     private final Evaluation evaluation;
@@ -24,6 +45,10 @@ public class GeneticAlgorithm implements Serializable {
     private Population population;
 
 
+    /**
+     * Checks if all the attributes are not null.
+     * @throws IllegalArgumentException  if at least one of the attributes is null.
+     */
     private void checkNullFields() {
         String msg = null;
 
@@ -40,6 +65,9 @@ public class GeneticAlgorithm implements Serializable {
             throw new IllegalArgumentException(msg);
     }
 
+    /**
+     * @throws IllegalArgumentException  if at least one of the given arguments is null.
+     */
     public GeneticAlgorithm(Configuration configuration,
                             Population population,
                             Evaluation evaluation,

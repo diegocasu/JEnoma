@@ -7,6 +7,10 @@ import java.util.Iterator;
 import java.util.List;
 
 
+/**
+ * Class representing a chromosome inside the genetic domain of the problem.
+ * @param <T>  the class representing a gene for this chromosome. It must implement Serializable.
+ */
 public class Chromosome<T extends Serializable> implements Iterable<T>, Serializable {
     private final List<T> genes;
 
@@ -48,9 +52,24 @@ public class Chromosome<T extends Serializable> implements Iterable<T>, Serializ
         };
     }
 
-    public void cross(Chromosome<T> c, int from, int to) {
-       for (int i = from; i <= to; i++)
+    /**
+     * Replaces the genes of the chromosome with the genes of the given one in the provided interval.
+     * @param c          the chromosome from which the new genes are taken.
+     * @param fromIndex  the lower bound (inclusive) of the interval.
+     * @param toIndex    the upper bound (exclusive) of the interval.
+     */
+    public void cross(Chromosome<T> c, int fromIndex, int toIndex) {
+       for (int i = fromIndex; i <= toIndex; i++)
            this.genes.set(i, c.getGene(i));
+    }
+
+    /**
+     * Returns a deep clone of the chromosome exploiting the <code>SerializationUtils</code> provided in
+     * <code>org.apache.commons.lang3.SerializationUtils</code>.
+     * @return  a deep clone of the chromosome.
+     */
+    public Chromosome<T> clone() {
+        return SerializationUtils.clone(this);
     }
 
     @Override
@@ -72,9 +91,5 @@ public class Chromosome<T extends Serializable> implements Iterable<T>, Serializ
         output.append("]");
 
         return output.toString();
-    }
-
-    public Chromosome<T> clone() {
-        return SerializationUtils.clone(this);
     }
 }

@@ -2,6 +2,7 @@ package it.unipi.jenoma.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -10,6 +11,10 @@ import java.io.Serializable;
 import java.util.List;
 
 
+/**
+ * Class representing a JSON configuration file.
+ * It stores the information needed to execute a genetic algorithm on a remote cluster.
+ */
 public class Configuration implements Serializable {
     private final String filePath;
     private String jarPath;
@@ -22,6 +27,11 @@ public class Configuration implements Serializable {
     private int seed;
 
 
+    /**
+     * Parses the JSON configuration file.
+     * @throws IOException         if an I/O error occurs while accessing the file.
+     * @throws JsonParseException  if the file contains an invalid JSON syntax.
+     */
     private void parseConfiguration() throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
         Configuration parsedConfiguration = new Gson().fromJson(reader, Configuration.class);
@@ -38,6 +48,12 @@ public class Configuration implements Serializable {
         reader.close();
     }
 
+    /**
+     * Parses a JSON configuration file and creates a corresponding Configuration object.
+     * @param filePath             the path of the configuration file.
+     * @throws IOException         if an I/O error occurs while accessing the file.
+     * @throws JsonParseException  if the file contains an invalid JSON syntax.
+     */
     public Configuration(String filePath) throws IOException {
         this.filePath = filePath;
         parseConfiguration();
