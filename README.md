@@ -40,7 +40,7 @@
   }
     ```
   The timeout is in milliseconds.
-- Run the program:
+- Run an example:
   ```bash
-    sudo java -cp target/jenoma-1.0-jar-with-dependencies.jar it.unipi.jenoma.cluster.Coordinator
+    sudo java -cp target/jenoma-1.0-jar-with-dependencies.jar it.unipi.jenoma.example.Test
   ```
