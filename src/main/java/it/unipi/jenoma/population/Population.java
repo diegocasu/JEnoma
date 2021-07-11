@@ -3,6 +3,7 @@ package it.unipi.jenoma.population;
 import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.Serializable;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
@@ -19,6 +20,11 @@ public class Population implements Iterable<Individual>, Serializable {
         individuals.add(individual);
     }
 
+    public void addIndividuals(List<Individual> individuals) {
+        for (Individual individual : individuals)
+            addIndividual(individual);
+    }
+
     public void removeIndividual(int index) {
         individuals.remove(index);
     }
@@ -28,24 +34,7 @@ public class Population implements Iterable<Individual>, Serializable {
     }
 
     public Iterator<Individual> iterator() {
-        return new Iterator<>() {
-            private final Iterator<Individual> iterator = individuals.iterator();
-
-            @Override
-            public boolean hasNext() {
-                return iterator.hasNext();
-            }
-
-            @Override
-            public Individual next() {
-                return iterator.next();
-            }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException("The removal of individuals is not supported");
-            }
-        };
+        return individuals.iterator();
     }
 
     @Override
@@ -77,6 +66,18 @@ public class Population implements Iterable<Individual>, Serializable {
     // Returns a view of the portion of the population between the specified fromIndex, inclusive, and toIndex, exclusive.
     public List<Individual> getIndividuals(int fromIndex, int toIndex) {
         return this.individuals.subList(fromIndex, toIndex);
+    }
+
+    public void setIndividual(int index, Individual individual) {
+        individuals.set(index, individual);
+    }
+
+    public void sortByAscendingFitness() {
+        individuals.sort(null);
+    }
+
+    public void sortByDescendingFitness() {
+        individuals.sort(Comparator.comparingDouble(Individual::getFitness).reversed());
     }
 
     public Population clone() {
