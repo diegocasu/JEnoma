@@ -68,6 +68,19 @@ public class Coordinator {
     }
 
     /**
+     * Sends a given message to the Erlang node.
+     * @param msg  the message to send to the Erlang node.
+     */
+    private void sendToErlangNode(OtpErlangObject msg) {
+        mailBox.send(
+                ClusterUtils.Process.COORDINATOR,
+                ClusterUtils.compose(
+                        ClusterUtils.Node.ERLANG,
+                        geneticAlgorithm.getConfiguration().getCoordinator()),
+                msg);
+    }
+
+    /**
      * Starts the EPMD daemon in the current machine.
      * @return  true if the EPMD daemon is started correctly, false otherwise.
      */
@@ -165,13 +178,10 @@ public class Coordinator {
 
     /**
      * Sends a stop message to the Erlang node.
-     * @param phase
+     * @param phase  the phase of the lifecycle of the Erlang node.
      */
     private void stopErlangNode(OtpErlangAtom phase) {
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangTuple(new OtpErlangObject[]{ phase, ClusterUtils.Atom.STOP }));
+        sendToErlangNode(new OtpErlangTuple(new OtpErlangObject[]{ phase, ClusterUtils.Atom.STOP }));
     }
 
     /**
@@ -188,7 +198,7 @@ public class Coordinator {
     /**
      * Stops the Java <code>OtpNode</code>, the Erlang node and the coordinator logger node.
      * Utility method to avoid missing some closing steps.
-     * @param phase
+     * @param phase  the phase of the lifecycle of the Erlang node.
      */
     private void stopAllNodes(OtpErlangAtom phase) {
         stopErlangNode(phase);
@@ -251,20 +261,16 @@ public class Coordinator {
                                     new OtpErlangAtom(ClusterUtils.compose(ClusterUtils.Node.ERLANG, worker))
                             }));
 
-        OtpErlangTuple msg = new OtpErlangTuple(
-                new OtpErlangObject[] {
-                        ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
-                        initClusterCmd,
-                        new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
-                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
-                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker()),
-                        new OtpErlangInt(geneticAlgorithm.getElitism().getNumberOfIndividuals())
-                });
-
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                msg);
+        sendToErlangNode(
+                new OtpErlangTuple(
+                        new OtpErlangObject[] {
+                                ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
+                                initClusterCmd,
+                                new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
+                                new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
+                                new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker()),
+                                new OtpErlangInt(geneticAlgorithm.getElitism().getNumberOfIndividuals())
+                        }));
     }
 
     /**
@@ -319,9 +325,7 @@ public class Coordinator {
             workloads[i] = new OtpErlangBinary(workload);
         }
 
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
+        sendToErlangNode(
                 new OtpErlangTuple(
                         new OtpErlangObject[] {
                                 ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
@@ -335,10 +339,12 @@ public class Coordinator {
      * @param terminationResult  the termination result of the iteration.
      */
     private void sendTerminationResult(OtpErlangAtom terminationResult) {
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangTuple(new OtpErlangObject[]{ ClusterUtils.Atom.GENERATION_END_PHASE, terminationResult }));
+        sendToErlangNode(
+                new OtpErlangTuple(
+                        new OtpErlangObject[]{
+                                ClusterUtils.Atom.GENERATION_END_PHASE,
+                                terminationResult
+                        }));
     }
 
     /**
