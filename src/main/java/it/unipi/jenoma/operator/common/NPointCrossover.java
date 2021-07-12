@@ -36,7 +36,7 @@ public class NPointCrossover implements Crossover {
      *          an offspring composed of two children otherwise.
      */
     @Override
-    public List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger) {
+    public List<Individual> cross(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger) {
         List<Individual> offspring = new ArrayList<>();
 
         if (parent1.getChromosome().getLength() != parent2.getChromosome().getLength()) {

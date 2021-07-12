@@ -169,7 +169,7 @@ class Worker {
                         int secondParent = prng.nextInt(matingPool.getLength());
 
                         if (firstParent != secondParent) {
-                            List<Individual> children = crossover.crossover(
+                            List<Individual> children = crossover.cross(
                                     matingPool.getIndividual(firstParent),
                                     matingPool.getIndividual(secondParent),
                                     prng, workerLogger);

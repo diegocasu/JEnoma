@@ -25,5 +25,5 @@ public interface Crossover extends Serializable {
      * @param logger   a logger that can be used to send log messages to the coordinator.
      * @return         a list of individuals representing the children.
      */
-    List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger);
+    List<Individual> cross(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger);
 }
