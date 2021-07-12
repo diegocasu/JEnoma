@@ -56,6 +56,9 @@ class ClusterUtils {
         public static final OtpErlangAtom GENERATION_END_PHASE = new OtpErlangAtom("generation_end_phase");
         public static final OtpErlangAtom RESULT_COLLECTION_PHASE = new OtpErlangAtom("result_collection_phase");
         public static final OtpErlangAtom SHUTDOWN_PHASE = new OtpErlangAtom("shutdown_phase");
+        public static final OtpErlangAtom SHUFFLE = new OtpErlangAtom("shuffle");
+        public static final OtpErlangAtom SHUFFLE_FRAGMENT = new OtpErlangAtom("shuffle_fragment");
+        public static final OtpErlangAtom SHUFFLE_COMPLETE = new OtpErlangAtom("shuffle_complete");
     }
 
 

@@ -10,7 +10,10 @@
   jar_file,
   java_worker_process,
   java_worker_name,
-  elitism_individuals = []
+  workers,
+  elitism_individuals = [],
+  received_individuals_for_shuffling = [],
+  shuffling_workers_ready = 0
 }).
 
 
@@ -41,9 +44,10 @@ main(State) ->
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} ! heartbeat,
       main(State);
 
-    {cluster_setup_phase, Workload} ->
+    {cluster_setup_phase, Workload, Workers} ->
       {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
-      main(State);
+      NewState = State#state{workers = Workers},
+      main(NewState);
 
     {elitism_phase, Elite, Worst} ->
       WorstWithSource = [{Fitness, Index, {State#state.this_process_name, node()}} || {Fitness, Index} <- Worst],
@@ -62,7 +66,7 @@ main(State) ->
       main(NewState);
 
     {elitism_phase, NewIndividual} ->
-      IndividualsList = [NewIndividual|State#state.elitism_individuals],
+      IndividualsList = [NewIndividual | State#state.elitism_individuals],
       NewState = State#state{elitism_individuals = IndividualsList},
       main(NewState);
 
@@ -71,7 +75,7 @@ main(State) ->
       main(State);
 
     {generation_end_phase, algorithm_end} ->
-    {State#state.java_worker_process, State#state.java_worker_name} ! algorithm_end,
+      {State#state.java_worker_process, State#state.java_worker_name} ! algorithm_end,
       main(State);
 
     {generation_end_phase, TerminationCondition} ->
@@ -82,9 +86,52 @@ main(State) ->
     {result_collection_phase, PopulationChunk} ->
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} !
         {result_collection_phase, PopulationChunk},
-      main(State)
+      main(State);
+
+    {shuffle, PopulationTOBESentForShuffling} ->
+      spawn(fun() -> broadcast(PopulationTOBESentForShuffling, State#state.workers) end),
+      main(State);
+
+    {population_fragment, Individual, stillSomeWorkersToBeSent} ->
+      NewState = State#state{received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling]},
+      main(NewState);
+
+    {population_fragment, Individual, allWorkersSent} ->
+      if
+        State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
+          {State#state.java_worker_process, State#state.java_worker_name} !
+              {shuffle_complete, [Individual | State#state.workers]},
+          NewState = State#state{
+            received_individuals_for_shuffling = [],
+            shuffling_workers_ready = 0
+          },
+          main(NewState);
+        true ->
+          NewState = State#state{
+            received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling],
+            shuffling_workers_ready = State#state.shuffling_workers_ready + 1
+          },
+          main(NewState)
+      end
+
   end.
 
+
+broadcast(Population, Peers) ->
+  broadcast(Population, Peers, 0).
+
+broadcast([H | T], Peers, Index) ->
+  case length(T) of
+    0 ->
+      lists:nth(Index, Peers) ! {population_fragment, H, allWorkersSent},
+      broadcast(T, Peers, Index + 1 rem length(Peers));
+    _ ->
+      lists:nth(Index, Peers) ! {population_fragment, H, stillSomeWorkersToBeSent},
+      broadcast(T, Peers, Index + 1 rem length(Peers))
+  end;
+
+broadcast([], _, _) ->
+  ok.
 
 stop_java_node(State) ->
   {State#state.java_worker_process, State#state.java_worker_name} ! stop.

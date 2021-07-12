@@ -20,8 +20,6 @@ import it.unipi.jenoma.operator.Elitism;
 import it.unipi.jenoma.operator.Evaluation;
 import it.unipi.jenoma.operator.Mutation;
 import it.unipi.jenoma.operator.TerminationCondition;
-import it.unipi.jenoma.population.Individual;
-import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.PRNG;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -29,6 +27,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -139,10 +138,7 @@ class Worker {
         }
 
         // Safety check, since a reference to the population is passed to the user-defined evaluation operator.
-        if (population == null || population.getLength() == 0)
-            return false;
-
-        return true;
+        return population != null && population.getLength() != 0;
     }
 
     private Population cross(Population matingPool, int offspringSize, Crossover crossover, List<PRNG> threadGenerators) {
@@ -361,7 +357,7 @@ class Worker {
         return true;
     }
 
-    private void executeAlgorithm(GeneticAlgorithm geneticAlgorithm) {
+    private void executeAlgorithm(GeneticAlgorithm geneticAlgorithm) throws OtpErlangDecodeException, OtpErlangExit{
         Pair<PRNG, List<PRNG>> prngs = createPRNGs(geneticAlgorithm.getConfiguration().getSeed());
         PRNG mainGenerator = prngs.getLeft();
         List<PRNG> threadGenerators = prngs.getRight();
@@ -408,12 +404,34 @@ class Worker {
                 return;
 
             // TODO: shuffling -> returns shuffledPopulation
+            sendShuffleMessageToErlangNode(offspring);
+
             // TODO: after shuffling --> geneticAlgorithm.setPopulation(shuffledPopulation)
+            geneticAlgorithm.setPopulation(receivePopulationForShuffling());
         }
+    }
+
+    private Population receivePopulationForShuffling() throws OtpErlangDecodeException, OtpErlangExit {
+        OtpErlangObject msg = mailBox.receive();
+
+        if (msg instanceof OtpErlangTuple otpErlangTuple &&
+                otpErlangTuple.elementAt(0).equals(ClusterUtils.Atom.SHUFFLE_COMPLETE)) {
+            OtpErlangList individualsErlangList = new OtpErlangList(otpErlangTuple.elementAt(1));
+            ArrayList<Individual> individulasForShuffling = new ArrayList<>(individualsErlangList.arity());
+
+            for(OtpErlangObject obj : individualsErlangList ){
+                individulasForShuffling.add((Individual) (((OtpErlangBinary) obj).getObject()));
+            }
+            return new Population(individulasForShuffling);
+
+        }
+
+        return null;
     }
 
     private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
         boolean waitForStop = false;
+        OtpErlangAtom shuffle_fragmentAtom = new OtpErlangAtom("shuffle_fragment");
 
         while (true) {
             OtpErlangObject msg = mailBox.receive();
