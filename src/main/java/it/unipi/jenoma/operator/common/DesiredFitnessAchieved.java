@@ -8,6 +8,10 @@ import it.unipi.jenoma.population.Population;
 import java.util.List;
 
 
+/**
+ * Termination condition that stops the algorithm when at least an individual
+ * achieves the given fitness.
+ */
 public class DesiredFitnessAchieved implements TerminationCondition<Boolean> {
     private final double desiredFitness;
 

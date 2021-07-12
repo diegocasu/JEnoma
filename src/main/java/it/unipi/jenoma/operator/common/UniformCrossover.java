@@ -10,17 +10,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+/**
+ * Crossover operator that implements the uniform crossover strategy,
+ * generating two children for each couple of parents.
+ */
 public class UniformCrossover implements Crossover {
     private final double crossoverProbability;
 
-
-    public UniformCrossover(double crossOverProbability) {
-        if (crossOverProbability < 0 || crossOverProbability > 1)
+    /**
+     * Creates a new <code>UniformCrossover</code> operator.
+     * @param crossoverProbability  the probability that a child will get the selected gene
+     *                              from the first parent. It must be between 0 and 1.
+     * @throws IllegalArgumentException  if the crossover probability is not between 0 and 1.
+     */
+    public UniformCrossover(double crossoverProbability) {
+        if (crossoverProbability < 0 || crossoverProbability > 1)
             throw new IllegalArgumentException("The crossover probability must be a number between 0 and 1.");
 
-        this.crossoverProbability = crossOverProbability;
+        this.crossoverProbability = crossoverProbability;
     }
 
+    /**
+     * @return  an empty offspring if the chromosomes of the two parents have different length,
+     *          an offspring composed of two children otherwise.
+     */
     @Override
     public List<Individual> crossover(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger) {
         List<Individual> offspring = new ArrayList<>();
