@@ -56,6 +56,7 @@ class ClusterUtils {
         public static final OtpErlangAtom HEARTBEAT = new OtpErlangAtom("heartbeat");
         public static final OtpErlangAtom STOP = new OtpErlangAtom("stop");
         public static final OtpErlangAtom CLUSTER_READY = new OtpErlangAtom("cluster_ready");
+        public static final OtpErlangAtom CLUSTER_TIMEOUT = new OtpErlangAtom("cluster_timeout");
         public static final OtpErlangAtom NOT_INVOLVED_ELITISM = new OtpErlangAtom("not_involved_elitism");
         public static final OtpErlangAtom TERMINATION_CONDITIONS = new OtpErlangAtom("termination_conditions");
         public static final OtpErlangAtom FINAL_POPULATION = new OtpErlangAtom("final_population");

@@ -467,4 +467,24 @@ public class Coordinator {
         stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
         return finalPopulation;
     }
+
+    /**
+     * Stops the execution of the genetic algorithm, asks for the deallocation of
+     * the cluster resources and stops the coordinator.
+     */
+    public void stop() {
+        // Check if the coordinator is running or not.
+        if (javaNode == null)
+            return;
+
+        localLogger.log(
+                Level.INFO,
+                "Call to stop(): aborting the computation and forcing the deallocation of the cluster resources.");
+
+        // Unblock the coordinator if it is waiting on a receive().
+        mailBox.send(mailBox.self(), ClusterUtils.Atom.CLUSTER_TIMEOUT);
+        mailBox.send(mailBox.self(), ClusterUtils.Atom.COMPUTATION_FAILED);
+
+        stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
+    }
 }
