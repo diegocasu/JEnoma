@@ -20,6 +20,8 @@ import it.unipi.jenoma.operator.Elitism;
 import it.unipi.jenoma.operator.Evaluation;
 import it.unipi.jenoma.operator.Mutation;
 import it.unipi.jenoma.operator.TerminationCondition;
+import it.unipi.jenoma.population.Individual;
+import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.PRNG;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -27,7 +29,6 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -404,10 +405,10 @@ class Worker {
                 return;
 
             // TODO: shuffling -> returns shuffledPopulation
-            sendShuffleMessageToErlangNode(offspring);
+            //sendShuffleMessageToErlangNode(offspring); TODO: fix
 
             // TODO: after shuffling --> geneticAlgorithm.setPopulation(shuffledPopulation)
-            geneticAlgorithm.setPopulation(receivePopulationForShuffling());
+            //geneticAlgorithm.setPopulation(receivePopulationForShuffling()); TODO: fix
         }
     }
 

@@ -44,10 +44,12 @@ main(State) ->
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} ! heartbeat,
       main(State);
 
-    {cluster_setup_phase, Workload, Workers} ->
+    %TODO: fix
+    {cluster_setup_phase, Workload} -> %, Workers} ->
       {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
-      NewState = State#state{workers = Workers},
-      main(NewState);
+      %NewState = State#state{workers = Workers},
+      %main(NewState);
+      main(State);
 
     {elitism_phase, Elite, Worst} ->
       WorstWithSource = [{Fitness, Index, {State#state.this_process_name, node()}} || {Fitness, Index} <- Worst],
