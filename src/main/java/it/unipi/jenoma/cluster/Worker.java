@@ -102,13 +102,13 @@ class Worker {
     }
 
     private boolean evaluate(Population population, Evaluation evaluation) {
-        int chunkSize = population.getLength()/numberOfThreads;
+        int chunkSize = population.getSize()/numberOfThreads;
         int threadsToSpawn = chunkSize > 0 ? numberOfThreads : 1;
         List<Callable<Void>> evaluationTasks = new ArrayList<>();
 
         for (int i = 0; i < threadsToSpawn; i++) {
             int startChunkIndex = i*chunkSize;
-            int endChunkIndex = (i == threadsToSpawn - 1) ? population.getLength() : (i + 1)*chunkSize;
+            int endChunkIndex = (i == threadsToSpawn - 1) ? population.getSize() : (i + 1)*chunkSize;
 
             evaluationTasks.add(() -> {
                 for (Individual individual : population.getIndividuals(startChunkIndex, endChunkIndex)) {
@@ -128,7 +128,7 @@ class Worker {
         }
 
         // Safety check, since a reference to the population is passed to the user-defined evaluation operator.
-        return population != null && population.getLength() != 0;
+        return population != null && population.getSize() != 0;
     }
 
     private Population cross(Population matingPool, int offspringSize, Crossover crossover, List<PRNG> threadGenerators) {
@@ -154,8 +154,8 @@ class Worker {
                     int counter = 0;
 
                     while (counter < maxAttempts) {
-                        int firstParent = prng.nextInt(matingPool.getLength());
-                        int secondParent = prng.nextInt(matingPool.getLength());
+                        int firstParent = prng.nextInt(matingPool.getSize());
+                        int secondParent = prng.nextInt(matingPool.getSize());
 
                         if (firstParent != secondParent) {
                             List<Individual> children = crossover.cross(
@@ -177,11 +177,11 @@ class Worker {
                         offspring.addIndividuals(taskResult);
                 }
 
-                if (offspring.getLength() == offspringSize)
+                if (offspring.getSize() == offspringSize)
                     return offspring;
 
-                if (offspring.getLength() > offspringSize) {
-                    offspring.removeIndividuals(offspringSize, offspring.getLength());
+                if (offspring.getSize() > offspringSize) {
+                    offspring.removeIndividuals(offspringSize, offspring.getSize());
                     return offspring;
                 }
             } catch (InterruptedException | ExecutionException e) {
@@ -192,13 +192,13 @@ class Worker {
     }
 
     private boolean mutate(Population offspring, Mutation mutation, List<PRNG> threadGenerators) {
-        int chunkSize = offspring.getLength()/numberOfThreads;
+        int chunkSize = offspring.getSize()/numberOfThreads;
         int threadsToSpawn = chunkSize > 0 ? numberOfThreads : 1;
         List<Callable<Void>> mutationTasks = new ArrayList<>();
 
         for (int i = 0; i < threadsToSpawn; i++) {
             int startChunkIndex = i*chunkSize;
-            int endChunkIndex = (i == threadsToSpawn - 1) ? offspring.getLength() : (i + 1)*chunkSize;
+            int endChunkIndex = (i == threadsToSpawn - 1) ? offspring.getSize() : (i + 1)*chunkSize;
             final PRNG prng = threadGenerators.get(i);
 
             mutationTasks.add(() -> {
@@ -289,7 +289,7 @@ class Worker {
     }
 
     private void applyElitism(Population original, Population offspring, Elitism elitism) {
-        int numberOfCandidates = Math.min(elitism.getNumberOfIndividuals(), original.getLength());
+        int numberOfCandidates = Math.min(elitism.getNumberOfIndividuals(), original.getSize());
         original.sortByDescendingFitness();
         offspring.sortByAscendingFitness();
 
@@ -356,13 +356,13 @@ class Worker {
             Population workingPopulation = geneticAlgorithm.getPopulation().clone();
 
             Population matingPool = geneticAlgorithm.getSelection().select(workingPopulation, mainGenerator, workerLogger);
-            if (matingPool == null || matingPool.getLength() < 2) {
+            if (matingPool == null || matingPool.getSize() < 2) {
                 workerLogger.log("The selection stage failed. Less than two individuals selected.");
                 return;
             }
             workerLogger.log("The selection stage succeeded.");
 
-            Population offspring = cross(matingPool, geneticAlgorithm.getPopulation().getLength(), geneticAlgorithm.getCrossover(), threadGenerators);
+            Population offspring = cross(matingPool, geneticAlgorithm.getPopulation().getSize(), geneticAlgorithm.getCrossover(), threadGenerators);
             if (offspring == null) {
                 workerLogger.log("The crossover stage failed.");
                 return;
@@ -439,8 +439,8 @@ class Worker {
 
     private void sendShuffleMessageToErlangNode(Population pop){
 
-        OtpErlangBinary[] individuals = new OtpErlangBinary[pop.getLength()];
-        for(int i = 0; i< pop.getLength();i++){
+        OtpErlangBinary[] individuals = new OtpErlangBinary[pop.getSize()];
+        for(int i = 0; i< pop.getSize(); i++){
             individuals[i] = new OtpErlangBinary(pop.getIndividual(i));
         }
         OtpErlangObject[] body = new OtpErlangObject[2];

@@ -43,7 +43,7 @@ public class RouletteWheelSelection implements Selection {
             double randomDouble = prng.nextDouble()*populationFitness;
             double partialSum = 0;
 
-            for (int j = 0; j < population.getLength(); j++) {
+            for (int j = 0; j < population.getSize(); j++) {
                 Individual individual = population.getIndividual(j);
                 partialSum += individual.getFitness();
 

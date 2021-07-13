@@ -278,7 +278,7 @@ public class TSP implements Serializable {
         Coordinator coordinator = new Coordinator(algorithm);
         Population finalPopulation = coordinator.start();
 
-        if (finalPopulation.getLength() == 0)
+        if (finalPopulation.getSize() == 0)
             return new ImmutablePair<>(finalPopulation, 0.0);
 
         finalPopulation.sortByDescendingFitness();

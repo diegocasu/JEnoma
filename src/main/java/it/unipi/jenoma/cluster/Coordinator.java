@@ -299,9 +299,9 @@ public class Coordinator {
     private boolean sendWorkloads() {
         Population population = geneticAlgorithm.getPopulation();
         List<String> workers = geneticAlgorithm.getConfiguration().getWorkers();
-        int chunkSize = population.getLength() / workers.size();
+        int chunkSize = population.getSize() / workers.size();
 
-        if (population.getLength() == 0) {
+        if (population.getSize() == 0) {
             localLogger.log(Level.INFO, "Empty population.");
             return false;
         }
@@ -316,7 +316,7 @@ public class Coordinator {
 
         OtpErlangObject[] workloads = new OtpErlangObject[workers.size()];
         for (int i = 0; i < workers.size(); i++) {
-            int endChunkIndex = (i == workers.size() - 1) ? population.getLength() : (i + 1)*chunkSize;
+            int endChunkIndex = (i == workers.size() - 1) ? population.getSize() : (i + 1)*chunkSize;
 
             GeneticAlgorithm workload = new GeneticAlgorithm(
                     geneticAlgorithm,
@@ -388,7 +388,7 @@ public class Coordinator {
             if (msg instanceof OtpErlangTuple msgTuple && msgTuple.elementAt(0).equals(ClusterUtils.Atom.FINAL_POPULATION)) {
                 for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1)) {
                     Population populationChunk = (Population) ((OtpErlangBinary) element).getObject();
-                    finalPopulation.addIndividuals(populationChunk.getIndividuals(0, populationChunk.getLength()));
+                    finalPopulation.addIndividuals(populationChunk.getIndividuals(0, populationChunk.getSize()));
                 }
                 return finalPopulation;
             }

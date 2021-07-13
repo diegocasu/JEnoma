@@ -47,10 +47,10 @@ public class TournamentSelection implements Selection {
      */
     @Override
     public Population select(Population population, PRNG prng, ClusterLogger logger) {
-        if (this.tournamentSize > population.getLength()) {
+        if (this.tournamentSize > population.getSize()) {
             logger.log(String.format(
                     "The number of candidates selected for tournament [%s] exceeds the population size [%s].",
-                    tournamentSize, population.getLength()));
+                    tournamentSize, population.getSize()));
             return new Population(new ArrayList<>());
         }
 
@@ -62,7 +62,7 @@ public class TournamentSelection implements Selection {
             int j = 0;
 
             while (j < tournamentSize) {
-                int index = prng.nextInt(population.getLength());
+                int index = prng.nextInt(population.getSize());
 
                 if (extracted.contains(index))
                     continue;

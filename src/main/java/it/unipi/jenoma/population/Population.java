@@ -19,7 +19,7 @@ public class Population implements Iterable<Individual>, Serializable {
         this.individuals = individuals;
     }
 
-    public int getLength() {
+    public int getSize() {
         return this.individuals.size();
     }
 

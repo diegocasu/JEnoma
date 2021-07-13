@@ -47,7 +47,7 @@ public class LowPopulationVariability implements TerminationCondition<HashMap<St
 
         HashMap<String, Object> result = new HashMap<>();
         result.put("fitnessAccumulator", fitnessAccumulator);
-        result.put("populationLength", population.getLength());
+        result.put("populationLength", population.getSize());
         result.put("bestIndividual", bestIndividual);
 
         return result;
