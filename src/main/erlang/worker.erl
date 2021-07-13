@@ -44,12 +44,10 @@ main(State) ->
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} ! heartbeat,
       main(State);
 
-    %TODO: fix
-    {cluster_setup_phase, Workload} -> %, Workers} ->
+    {cluster_setup_phase, Workload, Workers} ->
       {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
-      %NewState = State#state{workers = Workers},
-      %main(NewState);
-      main(State);
+      NewState = State#state{workers = Workers},
+      main(NewState);
 
     {elitism_phase, Elite, Worst} ->
       WorstWithSource = [{Fitness, Index, {State#state.this_process_name, node()}} || {Fitness, Index} <- Worst],
@@ -91,17 +89,21 @@ main(State) ->
       main(State);
 
     {shuffle, PopulationToBeSentForShuffling} ->
+      os:cmd("touch /home/iacopo/receivedashuffleMessage.txt"),
       spawn(fun() -> broadcast(PopulationToBeSentForShuffling, State#state.workers) end),
       main(State);
 
     {population_fragment, Individual} ->
+      % os:cmd(lists:flatten(io_lib:format("touch /home/iacopo/receivedFragment~p.txt", [length(State#state.received_individuals_for_shuffling)]))),
       NewState = State#state{received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling]},
       main(NewState);
 
     all_population_fragment_sent ->
+      os:cmd("touch /home/iacopo/receivedall_population_fragment_sent.txt"),
       if
         State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
           {State#state.java_worker_process, State#state.java_worker_name} ! {shuffle_complete, State#state.received_individuals_for_shuffling},
+          os:cmd("touch /home/iacopo/sentPopTojavanode.txt"),
           NewState = State#state{
             received_individuals_for_shuffling = [],
             shuffling_workers_ready = 0
@@ -111,11 +113,13 @@ main(State) ->
           NewState = State#state{
             shuffling_workers_ready = State#state.shuffling_workers_ready + 1
           },
+          os:cmd("touch /home/iacopo/still1TOReceive.txt"),
           main(NewState)
       end;
 
     _->
       %TODO: handle malformed messages
+      os:cmd("touch /home/iacopo/TROIAIO.txt"),
       main(State)
   end.
 

@@ -329,7 +329,7 @@ public class Coordinator {
                 new OtpErlangTuple(
                         new OtpErlangObject[] {
                                 ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
-                                new OtpErlangList(workloads)
+                                new OtpErlangList(workloads),
                         }));
         return true;
     }

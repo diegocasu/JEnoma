@@ -421,7 +421,7 @@ class Worker {
             OtpErlangList individualsErlangList = new OtpErlangList(otpErlangTuple.elementAt(1));
             ArrayList<Individual> individulasForShuffling = new ArrayList<>(individualsErlangList.arity());
             try {
-                for(OtpErlangObject object: individualsErlangList){
+                for(OtpErlangObject object: (OtpErlangList)(individualsErlangList.elementAt(0))){
                     individulasForShuffling.add((Individual)((OtpErlangBinary)object).getObject());
                 }
             }catch (Exception e){
@@ -435,6 +435,24 @@ class Worker {
 
         return null;
 
+    }
+
+    private void sendShuffleMessageToErlangNode(Population pop){
+
+        OtpErlangBinary[] individuals = new OtpErlangBinary[pop.getLength()];
+        for(int i = 0; i< pop.getLength();i++){
+            individuals[i] = new OtpErlangBinary(pop.getIndividual(i));
+        }
+        OtpErlangObject[] body = new OtpErlangObject[2];
+        body[0] = ClusterUtils.Atom.SHUFFLE;
+        body[1] = new OtpErlangList(individuals);
+
+        mailBox.send(
+                ClusterUtils.Process.WORKER,
+                ClusterUtils.compose(ClusterUtils.Node.ERLANG, host),
+                new OtpErlangTuple(body)
+        );
+        workerLogger.log("SHUFFLE message sent to erlang node");
     }
 
     private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
