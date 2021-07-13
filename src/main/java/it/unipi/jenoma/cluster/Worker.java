@@ -418,10 +418,10 @@ class Worker {
         if (msg instanceof OtpErlangTuple otpErlangTuple &&
                 otpErlangTuple.elementAt(0).equals(ClusterUtils.Atom.SHUFFLE_COMPLETE)) {
 
-            OtpErlangList individualsErlangList = new OtpErlangList(otpErlangTuple.elementAt(1));
-            ArrayList<Individual> individulasForShuffling = new ArrayList<>(individualsErlangList.arity());
+            OtpErlangList individualsErlangList = (OtpErlangList)otpErlangTuple.elementAt(1);
+            ArrayList<Individual> individulasForShuffling = new ArrayList<>();
             try {
-                for(OtpErlangObject object: (OtpErlangList)(individualsErlangList.elementAt(0))){
+                for(OtpErlangObject object: individualsErlangList){
                     individulasForShuffling.add((Individual)((OtpErlangBinary)object).getObject());
                 }
             }catch (Exception e){

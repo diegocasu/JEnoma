@@ -89,21 +89,17 @@ main(State) ->
       main(State);
 
     {shuffle, PopulationToBeSentForShuffling} ->
-      os:cmd("touch /home/iacopo/receivedashuffleMessage.txt"),
       spawn(fun() -> broadcast(PopulationToBeSentForShuffling, State#state.workers) end),
       main(State);
 
     {population_fragment, Individual} ->
-      % os:cmd(lists:flatten(io_lib:format("touch /home/iacopo/receivedFragment~p.txt", [length(State#state.received_individuals_for_shuffling)]))),
       NewState = State#state{received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling]},
       main(NewState);
 
     all_population_fragment_sent ->
-      os:cmd("touch /home/iacopo/receivedall_population_fragment_sent.txt"),
       if
         State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
           {State#state.java_worker_process, State#state.java_worker_name} ! {shuffle_complete, State#state.received_individuals_for_shuffling},
-          os:cmd("touch /home/iacopo/sentPopTojavanode.txt"),
           NewState = State#state{
             received_individuals_for_shuffling = [],
             shuffling_workers_ready = 0
@@ -113,7 +109,6 @@ main(State) ->
           NewState = State#state{
             shuffling_workers_ready = State#state.shuffling_workers_ready + 1
           },
-          os:cmd("touch /home/iacopo/still1TOReceive.txt"),
           main(NewState)
       end;
 
@@ -129,8 +124,8 @@ broadcast(Population, Peers) ->
 
 broadcast([H | T], Peers, Index) ->
   % lists:nth(Index, Peers) ! {population_fragment, H},
-  lists:foreach(fun(Peer) -> Peer ! {population_fragment, H} end, Peers),
-  broadcast(T, Peers, (Index + 1 rem length(Peers)));
+  lists:foreach(fun(Peer) -> Peer ! {population_fragment, H} end, Peers), % TODO: WHY??????????
+  broadcast(T, Peers, Index + 1 rem length(Peers));
 
 broadcast([], Peers, _) ->
   lists:foreach(fun(Peer) -> Peer ! all_population_fragment_sent end, Peers).
