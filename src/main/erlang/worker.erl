@@ -88,19 +88,18 @@ main(State) ->
         {result_collection_phase, PopulationChunk},
       main(State);
 
-    {shuffle, PopulationTOBESentForShuffling} ->
-      spawn(fun() -> broadcast(PopulationTOBESentForShuffling, State#state.workers) end),
+    {shuffle, PopulationToBeSentForShuffling} ->
+      spawn(fun() -> broadcast(PopulationToBeSentForShuffling, State#state.workers) end),
       main(State);
 
-    {population_fragment, Individual, stillSomeWorkersToBeSent} ->
+    {population_fragment, Individual} ->
       NewState = State#state{received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling]},
       main(NewState);
 
-    {population_fragment, Individual, allWorkersSent} ->
+    all_population_fragment_sent ->
       if
         State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
-          {State#state.java_worker_process, State#state.java_worker_name} !
-              {shuffle_complete, [Individual | State#state.workers]},
+          {State#state.java_worker_process, State#state.java_worker_name} ! {shuffle_complete, State#state.received_individuals_for_shuffling},
           NewState = State#state{
             received_individuals_for_shuffling = [],
             shuffling_workers_ready = 0
@@ -108,12 +107,14 @@ main(State) ->
           main(NewState);
         true ->
           NewState = State#state{
-            received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling],
             shuffling_workers_ready = State#state.shuffling_workers_ready + 1
           },
           main(NewState)
-      end
+      end;
 
+    _->
+      %TODO: handle malformed messages
+      main(State)
   end.
 
 
@@ -121,17 +122,12 @@ broadcast(Population, Peers) ->
   broadcast(Population, Peers, 0).
 
 broadcast([H | T], Peers, Index) ->
-  case length(T) of
-    0 ->
-      lists:nth(Index, Peers) ! {population_fragment, H, allWorkersSent},
-      broadcast(T, Peers, Index + 1 rem length(Peers));
-    _ ->
-      lists:nth(Index, Peers) ! {population_fragment, H, stillSomeWorkersToBeSent},
-      broadcast(T, Peers, Index + 1 rem length(Peers))
-  end;
+  % lists:nth(Index, Peers) ! {population_fragment, H},
+  lists:foreach(fun(Peer) -> Peer ! {population_fragment, H} end, Peers),
+  broadcast(T, Peers, (Index + 1 rem length(Peers)));
 
-broadcast([], _, _) ->
-  ok.
+broadcast([], Peers, _) ->
+  lists:foreach(fun(Peer) -> Peer ! all_population_fragment_sent end, Peers).
 
 stop_java_node(State) ->
   {State#state.java_worker_process, State#state.java_worker_name} ! stop.

@@ -1,18 +1,6 @@
 package it.unipi.jenoma.cluster;
 
-import com.ericsson.otp.erlang.OtpErlangAtom;
-import com.ericsson.otp.erlang.OtpErlangBinary;
-import com.ericsson.otp.erlang.OtpErlangDecodeException;
-import com.ericsson.otp.erlang.OtpErlangDouble;
-import com.ericsson.otp.erlang.OtpErlangExit;
-import com.ericsson.otp.erlang.OtpErlangInt;
-import com.ericsson.otp.erlang.OtpErlangList;
-import com.ericsson.otp.erlang.OtpErlangLong;
-import com.ericsson.otp.erlang.OtpErlangObject;
-import com.ericsson.otp.erlang.OtpErlangRangeException;
-import com.ericsson.otp.erlang.OtpErlangTuple;
-import com.ericsson.otp.erlang.OtpMbox;
-import com.ericsson.otp.erlang.OtpNode;
+import com.ericsson.otp.erlang.*;
 
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
 import it.unipi.jenoma.operator.Crossover;
@@ -26,10 +14,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -267,6 +252,16 @@ class Worker {
         try {
             OtpErlangObject msg = mailBox.receive();
 
+            // INIZIO_TROIAIO
+            OtpErlangAtom logAtom = new OtpErlangAtom("log");
+
+            if(msg instanceof OtpErlangTuple otpErlangtuple && otpErlangtuple.elementAt(1).equals(logAtom)){
+                OtpErlangString str = ((OtpErlangString)otpErlangtuple.elementAt(1));
+                workerLogger.log(str.stringValue());
+                return;
+            }
+            // FINE_TROIAIO
+
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.STOP)) {
                 workerLogger.log("The elitism stage failed.");
                 workerLogger.log("Stopping the execution.");
@@ -404,34 +399,51 @@ class Worker {
                 return;
 
             // TODO: shuffling -> returns shuffledPopulation
+            workerLogger.log("Starting the shuffling phase");
+
             sendShuffleMessageToErlangNode(offspring);
 
             // TODO: after shuffling --> geneticAlgorithm.setPopulation(shuffledPopulation)
-            geneticAlgorithm.setPopulation(receivePopulationForShuffling());
+            Population shuffledPop = receivePopulationForShuffling();
+            if(shuffledPop == null){
+                workerLogger.log("Shuffled population is null");
+            }
+            geneticAlgorithm.setPopulation(shuffledPop);
         }
     }
 
-    private Population receivePopulationForShuffling() throws OtpErlangDecodeException, OtpErlangExit {
-        OtpErlangObject msg = mailBox.receive();
+    private Population receivePopulationForShuffling() {
+        OtpErlangObject msg = null;
+        try {
+            msg = mailBox.receive();
+        } catch (OtpErlangExit | OtpErlangDecodeException otpErlangExit) {
+           workerLogger.log(Arrays.toString(otpErlangExit.getStackTrace()));
+        }
 
         if (msg instanceof OtpErlangTuple otpErlangTuple &&
                 otpErlangTuple.elementAt(0).equals(ClusterUtils.Atom.SHUFFLE_COMPLETE)) {
+
             OtpErlangList individualsErlangList = new OtpErlangList(otpErlangTuple.elementAt(1));
             ArrayList<Individual> individulasForShuffling = new ArrayList<>(individualsErlangList.arity());
-
-            for(OtpErlangObject obj : individualsErlangList ){
-                individulasForShuffling.add((Individual) (((OtpErlangBinary) obj).getObject()));
+            try {
+                for(OtpErlangObject object: individualsErlangList){
+                    individulasForShuffling.add((Individual)((OtpErlangBinary)object).getObject());
+                }
+            }catch (Exception e){
+                workerLogger.log(Arrays.toString(e.getStackTrace()));
+                workerLogger.log(e.getMessage());
             }
-            return new Population(individulasForShuffling);
 
+            workerLogger.log("Retrieved population, ready for shuffling");
+            return new Population(individulasForShuffling);
         }
 
         return null;
+
     }
 
     private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
         boolean waitForStop = false;
-        OtpErlangAtom shuffle_fragmentAtom = new OtpErlangAtom("shuffle_fragment");
 
         while (true) {
             OtpErlangObject msg = mailBox.receive();
