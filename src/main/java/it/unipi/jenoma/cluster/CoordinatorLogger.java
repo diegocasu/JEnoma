@@ -14,6 +14,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
+/**
+ * The coordinator logger of the cluster. It is a dedicated Java <code>OtpNode</code> accepting string
+ * messages from instances of <code>WorkerLogger</code> running in remote machines.
+ * The received log messages are redirected to the local Java logger of the coordinator machine,
+ * so that they can be shown to the user.
+ */
 class CoordinatorLogger implements Runnable {
     private final Logger logger;
     private final String host;
@@ -21,11 +27,20 @@ class CoordinatorLogger implements Runnable {
     private final OtpMbox mailBox;
 
 
+    /**
+     * Stops the Java <code>OtpNode</code> and deallocates its resources.
+     */
     private void stopNode() {
         mailBox.close();
         node.close();
     }
 
+    /**
+     * Creates a new <code>CoordinatorLogger</code>.
+     * @param host        the host name of the Java <code>OtpNode</code> representing the logger.
+     * @param loggerName  the name of the logger to be retrieved with <code>Logger.getLogger()</code>.
+     * @throws IOException  if the Java <code>OtpNode</code> cannot be instantiated correctly.
+     */
     public CoordinatorLogger(String host, String loggerName) throws IOException {
         this.logger = Logger.getLogger(loggerName);
         this.host = host;

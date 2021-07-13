@@ -8,12 +8,17 @@ import it.unipi.jenoma.operator.Elitism;
 import it.unipi.jenoma.operator.Evaluation;
 import it.unipi.jenoma.operator.Mutation;
 import it.unipi.jenoma.operator.TerminationCondition;
+import it.unipi.jenoma.population.Individual;
+import it.unipi.jenoma.population.Population;
 import it.unipi.jenoma.utils.PRNG;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -153,7 +158,7 @@ class Worker {
                         int secondParent = prng.nextInt(matingPool.getLength());
 
                         if (firstParent != secondParent) {
-                            List<Individual> children = crossover.crossover(
+                            List<Individual> children = crossover.cross(
                                     matingPool.getIndividual(firstParent),
                                     matingPool.getIndividual(secondParent),
                                     prng, workerLogger);
@@ -251,16 +256,6 @@ class Worker {
     private void receiveIndividualsForElitism(Population offspring) {
         try {
             OtpErlangObject msg = mailBox.receive();
-
-            // INIZIO_TROIAIO
-            OtpErlangAtom logAtom = new OtpErlangAtom("log");
-
-            if(msg instanceof OtpErlangTuple otpErlangtuple && otpErlangtuple.elementAt(1).equals(logAtom)){
-                OtpErlangString str = ((OtpErlangString)otpErlangtuple.elementAt(1));
-                workerLogger.log(str.stringValue());
-                return;
-            }
-            // FINE_TROIAIO
 
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.STOP)) {
                 workerLogger.log("The elitism stage failed.");

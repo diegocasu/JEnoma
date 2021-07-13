@@ -8,52 +8,86 @@ import it.unipi.jenoma.population.Population;
 import java.util.List;
 
 
-public class NoImprovement implements TerminationCondition<Boolean> {
+/**
+ * Termination condition that stops the algorithm if the best fitness achieved
+ * does not increase for more than <i>N</i> consecutive generations.
+ */
+public class NoImprovement implements TerminationCondition<Individual> {
+    // Fields accessed only in the reduce phase by the coordinator.
+    private Individual bestIndividualAcrossGenerations;
     private final int maxGenerationsWithoutImprovement;
     private int generationsWithoutImprovement;
-    private double bestFitness;
 
 
+    /**
+     * Creates a new <code>NoImprovement</code> operator.
+     * @param maxGenerationsWithoutImprovement  the allowed maximum number of consecutive generations
+     *                                          without having an improvement in the best fitness.
+     *                                          It must be greater than 0.
+     * @throws IllegalArgumentException  if the given number of generations is less than or equal to 0.
+     */
     public NoImprovement(int maxGenerationsWithoutImprovement) {
         if (maxGenerationsWithoutImprovement <= 0)
             throw new IllegalArgumentException("The number of generations must be greater than 0.");
 
         this.maxGenerationsWithoutImprovement = maxGenerationsWithoutImprovement;
-        generationsWithoutImprovement = 0;
-        bestFitness = 0;
+        this.generationsWithoutImprovement = 0;
+        this.bestIndividualAcrossGenerations = null;
     }
 
     @Override
-    public Boolean map(Population population, int generationsElapsed, ClusterLogger logger) {
-        double currentBestFitness = 0;
+    public Individual map(Population population, int generationsElapsed, ClusterLogger logger) {
+        Individual bestIndividual = null;
 
         for (Individual individual : population) {
-            if (individual.getFitness() > currentBestFitness)
-                currentBestFitness = individual.getFitness();
+            if (bestIndividual == null)
+                bestIndividual = individual;
+            else if (bestIndividual.getFitness() < individual.getFitness())
+                bestIndividual = individual;
         }
 
-        if (currentBestFitness > bestFitness) {
-            logger.log(String.format("The fitness improved: [%s > %s].", currentBestFitness, bestFitness));
-            bestFitness = currentBestFitness;
+        return bestIndividual;
+    }
+
+    @Override
+    public boolean end(List<Individual> bestIndividuals, ClusterLogger logger) {
+        Individual bestIndividual = null;
+
+        for (Individual individual : bestIndividuals) {
+            if (bestIndividual == null)
+                bestIndividual = individual;
+            else if (bestIndividual.getFitness() < individual.getFitness())
+                bestIndividual = individual;
+        }
+
+        if (bestIndividualAcrossGenerations == null) {
+            bestIndividualAcrossGenerations = bestIndividual;
+            logger.log(String.format(
+                    "Initial best individual. Fitness %s.",
+                    bestIndividualAcrossGenerations.getFitness()));
+            return false;
+        }
+
+        logger.log(String.format(
+                "The best individual of this generation has fitness %s.",
+                bestIndividual.getFitness()));
+
+        if (bestIndividual.getFitness() > bestIndividualAcrossGenerations.getFitness()) {
+            logger.log(String.format(
+                    "The fitness improved: %s > %s.",
+                    bestIndividual.getFitness(),
+                    bestIndividualAcrossGenerations.getFitness()));
+
+            bestIndividualAcrossGenerations = bestIndividual;
             generationsWithoutImprovement = 0;
             return false;
         }
 
         generationsWithoutImprovement++;
         logger.log(String.format(
-                "The fitness did not improve. Number of generations without an improvement: [%s].",
+                "The fitness did not improve. Number of generations without an improvement: %s.",
                 generationsWithoutImprovement));
-
         return generationsWithoutImprovement > maxGenerationsWithoutImprovement;
-    }
-
-    @Override
-    public boolean end(List<Boolean> partialConditions, ClusterLogger logger) {
-        for (Boolean improvement : partialConditions) {
-            if (improvement)
-                return false;
-        }
-        return true;
     }
 }
 

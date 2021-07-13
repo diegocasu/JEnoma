@@ -26,10 +26,16 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 
+/**
+ * The Java coordinator of the cluster of machines. The coordinator starts the initialization of the cluster
+ * and, together with the Erlang coordinator, manages the lifecycle of the genetic algorithm's execution,
+ * ensuring that the population is distributed to workers, the termination condition is correctly checked
+ * and the final results are collected.
+ */
 public class Coordinator {
     /*
      * This logger object is the same used by coordinatorLogger, as granted by calling Logger.getLogger()
-     * passing the same name as argument, but concurrent writes on a logger object are thread-safe.
+     * passing the same name as argument. Concurrent writes on a logger object are thread-safe.
      */
     private final Logger localLogger;
     private final String LOGGER_NAME = "it.unipi.jenoma";
@@ -40,11 +46,18 @@ public class Coordinator {
     private CoordinatorLogger coordinatorLogger;
     private ExecutorService loggerExecutor;
 
-
+    /**
+     * Checks if at least one worker was provided in the configuration file.
+     * @return  true if at least one worker was provided in the configuration file, false otherwise.
+     */
     private boolean noWorkersRegistered() {
         return geneticAlgorithm.getConfiguration().getWorkers().size() == 0;
     }
 
+    /**
+     * Loads the configuration of the logger stored in <code>resources/LOGGER_PROPERTIES</code>.
+     * A failure in the loading of the properties does not prevent the execution of the algorithm.
+     */
     private void loadLoggerConfiguration() {
         try {
             LogManager.getLogManager().readConfiguration(Coordinator.class.getResourceAsStream(LOGGER_PROPERTIES));
@@ -54,6 +67,23 @@ public class Coordinator {
         }
     }
 
+    /**
+     * Sends a given message to the Erlang node.
+     * @param msg  the message to send to the Erlang node.
+     */
+    private void sendToErlangNode(OtpErlangObject msg) {
+        mailBox.send(
+                ClusterUtils.Process.COORDINATOR,
+                ClusterUtils.compose(
+                        ClusterUtils.Node.ERLANG,
+                        geneticAlgorithm.getConfiguration().getCoordinator()),
+                msg);
+    }
+
+    /**
+     * Starts the EPMD daemon in the current machine.
+     * @return  true if the EPMD daemon is started correctly, false otherwise.
+     */
     private boolean startEPMD() {
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command(ClusterUtils.getProcessCommandStartEPMD());
@@ -69,6 +99,10 @@ public class Coordinator {
         return true;
     }
 
+    /**
+     * Starts the Java <code>OtpNode</code> in the current machine.
+     * @return  true if the Java <code>OtpNode</code> is started correctly, false otherwise.
+     */
     private boolean startJavaNode() {
         try {
             javaNode = new OtpNode(
@@ -85,6 +119,10 @@ public class Coordinator {
         return true;
     }
 
+    /**
+     * Starts the Erlang node in the current machine.
+     * @return  true if the Erlang node is started correctly, false otherwise.
+     */
     private boolean startErlangNode() {
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command(ClusterUtils.getProcessCommandCommandStartErlangCoordinator(geneticAlgorithm.getConfiguration()));
@@ -109,6 +147,12 @@ public class Coordinator {
         return true;
     }
 
+    /**
+     * Starts the coordinator logger node in the current machine.
+     * The logger is executed in a separate thread, whose instantiation
+     * is managed by an ExecutorService.
+     * @return  true if the coordinator logger node is started correctly, false otherwise.
+     */
     private boolean startCoordinatorLogger() {
         try {
             coordinatorLogger = new CoordinatorLogger(
@@ -124,18 +168,25 @@ public class Coordinator {
         return true;
     }
 
+    /**
+     * Stops the Java <code>OtpNode</code> and deallocates its resources.
+     */
     private void stopJavaNode() {
         mailBox.close();
         javaNode.close();
     }
 
+    /**
+     * Sends a stop message to the Erlang node.
+     * @param phase  the phase of the lifecycle of the Erlang node.
+     */
     private void stopErlangNode(OtpErlangAtom phase) {
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangTuple(new OtpErlangObject[]{ phase, ClusterUtils.Atom.STOP }));
+        sendToErlangNode(new OtpErlangTuple(new OtpErlangObject[]{ phase, ClusterUtils.Atom.STOP }));
     }
 
+    /**
+     * Sends a stop message to the coordinator logger node.
+     */
     private void stopCoordinatorLogger() {
         mailBox.send(
                 ClusterUtils.Process.LOGGER,
@@ -144,12 +195,22 @@ public class Coordinator {
         loggerExecutor.shutdown();
     }
 
+    /**
+     * Stops the Java <code>OtpNode</code>, the Erlang node and the coordinator logger node.
+     * Utility method to avoid missing some closing steps.
+     * @param phase  the phase of the lifecycle of the Erlang node.
+     */
     private void stopAllNodes(OtpErlangAtom phase) {
         stopErlangNode(phase);
         stopCoordinatorLogger();
         stopJavaNode();
     }
 
+    /**
+     * Starts the Java <code>OtpNode</code>, the Erlang node and the
+     * coordinator logger node in the coordinator machine.
+     * @return  true if all the nodes are initialized correctly, false otherwise.
+     */
     private boolean startCoordinator() {
         localLogger.log(Level.INFO, "Initializing the required processes.");
 
@@ -180,17 +241,14 @@ public class Coordinator {
         }
         localLogger.log(Level.INFO, "Logger started correctly.");
 
-        if (!ClusterUtils.createClusterInitScript(geneticAlgorithm.getConfiguration(), localLogger)) {
-            localLogger.log(Level.INFO, "Error while creating the cluster initialization script.");
-            stopAllNodes(ClusterUtils.Atom.INIT_PHASE);
-            return false;
-        }
-
-        localLogger.log(Level.INFO, "Cluster initialization script created.");
         return true;
     }
 
-    private void initializeCluster() {
+    /**
+     * Sends the cluster initialization information to the Erlang node,
+     * so that the cluster setup can effectively start.
+     */
+    private void sendClusterInitializationInfo() {
         OtpErlangString initClusterCmd = new OtpErlangString(
                 String.join(" ", ClusterUtils.getShellCommandClusterInit()));
 
@@ -203,22 +261,23 @@ public class Coordinator {
                                     new OtpErlangAtom(ClusterUtils.compose(ClusterUtils.Node.ERLANG, worker))
                             }));
 
-        OtpErlangTuple msg = new OtpErlangTuple(
-                new OtpErlangObject[] {
-                        ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
-                        initClusterCmd,
-                        new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
-                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
-                        new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker()),
-                        new OtpErlangInt(geneticAlgorithm.getElitism().getNumberOfIndividuals())
-                });
-
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                msg);
+        sendToErlangNode(
+                new OtpErlangTuple(
+                        new OtpErlangObject[] {
+                                ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
+                                initClusterCmd,
+                                new OtpErlangList(workers.toArray(new OtpErlangObject[0])),
+                                new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutSetupCluster()),
+                                new OtpErlangInt(geneticAlgorithm.getConfiguration().getTimeoutWorker()),
+                                new OtpErlangInt(geneticAlgorithm.getElitism().getNumberOfIndividuals())
+                        }));
     }
 
+    /**
+     * Waits until the cluster setup is terminated. The setup termination (or
+     * an eventual timeout) is notified by the Erlang node with a message.
+     * @return  true if the cluster setup succeeds, false otherwise.
+     */
     private boolean waitForClusterReady() {
         OtpErlangAtom msg;
 
@@ -232,7 +291,12 @@ public class Coordinator {
         return msg.equals(ClusterUtils.Atom.CLUSTER_READY);
     }
 
-    private boolean sendWorkloadsToErlangNode() {
+    /**
+     * Sends the list of population chunks obtained from the initial population to the Erlang node.
+     * @return  true if the population can be correctly divided into chunks, false otherwise
+     *          (empty population or less than two individuals per chunk).
+     */
+    private boolean sendWorkloads() {
         Population population = geneticAlgorithm.getPopulation();
         List<String> workers = geneticAlgorithm.getConfiguration().getWorkers();
         int chunkSize = population.getLength() / workers.size();
@@ -243,7 +307,9 @@ public class Coordinator {
         }
 
         if (chunkSize < 2) {
-            localLogger.log(Level.INFO, "The actual setup assigns less than two individuals per worker. "
+            localLogger.log(
+                    Level.INFO,
+                    "The actual setup assigns less than two individuals per worker. "
                     + "Please decrease the number of workers or increase the population size.");
             return false;
         }
@@ -259,9 +325,7 @@ public class Coordinator {
             workloads[i] = new OtpErlangBinary(workload);
         }
 
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
+        sendToErlangNode(
                 new OtpErlangTuple(
                         new OtpErlangObject[] {
                                 ClusterUtils.Atom.CLUSTER_SETUP_PHASE,
@@ -270,13 +334,27 @@ public class Coordinator {
         return true;
     }
 
+    /**
+     * Sends a termination result for the current iteration of the algorithm to the Erlang node.
+     * @param terminationResult  the termination result of the iteration.
+     */
     private void sendTerminationResult(OtpErlangAtom terminationResult) {
-        mailBox.send(
-                ClusterUtils.Process.COORDINATOR,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, geneticAlgorithm.getConfiguration().getCoordinator()),
-                new OtpErlangTuple(new OtpErlangObject[]{ ClusterUtils.Atom.GENERATION_END_PHASE, terminationResult }));
+        sendToErlangNode(
+                new OtpErlangTuple(
+                        new OtpErlangObject[]{
+                                ClusterUtils.Atom.GENERATION_END_PHASE,
+                                terminationResult
+                        }));
     }
 
+    /**
+     * Waits until the genetic algorithms terminates or fails, evaluating the termination conditions
+     * sent by the workers at each generation to determine if the algorithm must end, and
+     * eventually merging the final results to obtain the final population.
+     * @return  the final population if the algorithm terminates correctly, an empty population otherwise.
+     * @throws OtpErlangDecodeException  if an error occurs while decoding an Erlang message.
+     * @throws OtpErlangExit             if the communication channel with the Erlang node fails.
+     */
     private Population waitForTermination() throws OtpErlangDecodeException, OtpErlangExit {
         Population finalPopulation = new Population(new ArrayList<>());
         ClusterLogger terminationConditionLogger = log -> localLogger.log(Level.INFO, log);
@@ -291,40 +369,48 @@ public class Coordinator {
                 return finalPopulation;
             }
 
-            if (msg instanceof OtpErlangTuple msgTuple) {
-                if (msgTuple.elementAt(0).equals(ClusterUtils.Atom.TERMINATION_CONDITIONS)) {
-                    List partialConditions = new ArrayList<>();
+            if (msg instanceof OtpErlangTuple msgTuple && msgTuple.elementAt(0).equals(ClusterUtils.Atom.TERMINATION_CONDITIONS)) {
+                List partialConditions = new ArrayList<>();
 
-                    for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1))
-                        partialConditions.add(((OtpErlangBinary) element).getObject());
+                for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1))
+                    partialConditions.add(((OtpErlangBinary) element).getObject());
 
-                    if (geneticAlgorithm.getTerminationCondition().end(partialConditions, terminationConditionLogger)) {
-                        localLogger.log(Level.INFO, "Termination condition met. Collecting the population.");
-                        sendTerminationResult(ClusterUtils.Atom.ALGORITHM_END);
-                    }
-                    else {
-                        localLogger.log(Level.INFO, "Termination condition not met. Starting the next iteration.");
-                        sendTerminationResult(ClusterUtils.Atom.ALGORITHM_CONTINUE);
-                    }
-                    continue;
+                if (geneticAlgorithm.getTerminationCondition().end(partialConditions, terminationConditionLogger)) {
+                    localLogger.log(Level.INFO, "Termination condition met. Collecting the population.");
+                    sendTerminationResult(ClusterUtils.Atom.ALGORITHM_END);
+                } else {
+                    localLogger.log(Level.INFO, "Termination condition not met. Starting the next iteration.");
+                    sendTerminationResult(ClusterUtils.Atom.ALGORITHM_CONTINUE);
                 }
+                continue;
+            }
 
-                if (msgTuple.elementAt(0).equals(ClusterUtils.Atom.FINAL_POPULATION)) {
-                    for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1)) {
-                        Population populationChunk = (Population) ((OtpErlangBinary) element).getObject();
-                        finalPopulation.addIndividuals(populationChunk.getIndividuals(0, populationChunk.getLength()));
-                    }
-                    return finalPopulation;
+            if (msg instanceof OtpErlangTuple msgTuple && msgTuple.elementAt(0).equals(ClusterUtils.Atom.FINAL_POPULATION)) {
+                for (OtpErlangObject element : (OtpErlangList) msgTuple.elementAt(1)) {
+                    Population populationChunk = (Population) ((OtpErlangBinary) element).getObject();
+                    finalPopulation.addIndividuals(populationChunk.getIndividuals(0, populationChunk.getLength()));
                 }
+                return finalPopulation;
             }
         }
     }
 
+    /**
+     * Creates a new <code>Coordinator</code>.
+     * @param geneticAlgorithm  the genetic algorithm to be executed on the remote cluster.
+     */
     public Coordinator(GeneticAlgorithm geneticAlgorithm) {
         this.geneticAlgorithm = geneticAlgorithm;
         this.localLogger = Logger.getLogger(LOGGER_NAME);
     }
 
+    /**
+     * Starts the execution of the genetic algorithm on the remote cluster.
+     * The method is blocking: it returns the final population when the algorithm terminates
+     * correctly, or an empty population as soon as an error in the initialization of the cluster
+     * or in the execution of the stages occurs.
+     * @return  the final population if the algorithm terminates correctly, an empty population otherwise.
+     */
     public Population start() {
         Population finalPopulation = new Population(new ArrayList<>());
         loadLoggerConfiguration();
@@ -340,9 +426,16 @@ public class Coordinator {
             return finalPopulation;
         }
 
+        if (!ClusterUtils.createClusterInitScript(geneticAlgorithm.getConfiguration(), localLogger)) {
+            localLogger.log(Level.INFO, "Error while creating the cluster initialization script.");
+            stopAllNodes(ClusterUtils.Atom.INIT_PHASE);
+            return finalPopulation;
+        }
+
+        localLogger.log(Level.INFO, "Cluster initialization script created.");
         localLogger.log(Level.INFO, "Initialization performed successfully.");
         localLogger.log(Level.INFO, "Starting the initialization of the cluster.");
-        initializeCluster();
+        sendClusterInitializationInfo();
         boolean clusterReady = waitForClusterReady();
 
         if (!clusterReady) {
@@ -354,7 +447,7 @@ public class Coordinator {
 
         localLogger.log(Level.INFO, "Cluster initialized successfully.");
         localLogger.log(Level.INFO, "Sending workloads to workers.");
-        boolean workloadsSent = sendWorkloadsToErlangNode();
+        boolean workloadsSent = sendWorkloads();
 
         if (!workloadsSent) {
             localLogger.log(Level.INFO, "Failed to send the workloads.");
@@ -373,5 +466,25 @@ public class Coordinator {
 
         stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
         return finalPopulation;
+    }
+
+    /**
+     * Stops the execution of the genetic algorithm, asks for the deallocation of
+     * the cluster resources and stops the coordinator.
+     */
+    public void stop() {
+        // Check if the coordinator is running or not.
+        if (javaNode == null)
+            return;
+
+        localLogger.log(
+                Level.INFO,
+                "Call to stop(): aborting the computation and forcing the deallocation of the cluster resources.");
+
+        // Unblock the coordinator if it is waiting on a receive().
+        mailBox.send(mailBox.self(), ClusterUtils.Atom.CLUSTER_TIMEOUT);
+        mailBox.send(mailBox.self(), ClusterUtils.Atom.COMPUTATION_FAILED);
+
+        stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
     }
 }

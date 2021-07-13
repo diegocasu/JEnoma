@@ -9,10 +9,21 @@ import it.unipi.jenoma.utils.PRNG;
 import java.util.ArrayList;
 
 
+/**
+ * Selection operator implementing the roulette wheel strategy.
+ * The operator guarantees that the given number of individuals is selected
+ * for each worker in isolation, i.e. on each assigned population portion, and not globally.
+ */
 public class RouletteWheelSelection implements Selection {
     private final int numberOfIndividuals;
 
 
+    /**
+     * Creates a new <code>RouletteWheelSelection</code> operator.
+     * @param numberOfIndividuals  the number of individuals that must be selected.
+     *                             It must be greater than 0.
+     * @throws IllegalArgumentException  if the given number of individuals is less than or equal to 0.
+     */
     public RouletteWheelSelection(int numberOfIndividuals) {
         if (numberOfIndividuals <= 0)
             throw new IllegalArgumentException("The number of individuals to select must be greater than 0.");
