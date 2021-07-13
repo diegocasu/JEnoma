@@ -114,7 +114,7 @@ main(State) ->
 
     _->
       %TODO: handle malformed messages
-      os:cmd("touch /home/iacopo/TROIAIO.txt"),
+      os:cmd("touch ~/TROIAIO.txt"),
       main(State)
   end.
 
@@ -123,7 +123,7 @@ broadcast(Population, Peers) ->
   broadcast(Population, Peers, 0).
 
 broadcast([H | T], Peers, Index) ->
-  % lists:nth(Index, Peers) ! {population_fragment, H},
+  %% lists:nth(Index + 1, Peers) ! {population_fragment, H},
   lists:foreach(fun(Peer) -> Peer ! {population_fragment, H} end, Peers), % TODO: WHY??????????
   broadcast(T, Peers, Index + 1 rem length(Peers));
 
@@ -137,3 +137,4 @@ stop_java_node(State) ->
 stop(Reason) ->
   init:stop(),
   exit(Reason).
+
