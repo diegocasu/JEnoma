@@ -2,6 +2,8 @@ package it.unipi.jenoma.utils;
 
 import org.apache.commons.math3.random.MersenneTwister;
 
+import java.io.Serializable;
+
 
 /**
  * A pseudorandom number generator based on the MersenneTwister implementation provided in
@@ -17,7 +19,7 @@ import org.apache.commons.math3.random.MersenneTwister;
  * 3) a supporting generator <code>k</code>, where <code>k = 1...N</code>, is seeded with
  *    <code>hostSeed + k</code>.
  */
-public class PRNG {
+public class PRNG implements Serializable {
     private MersenneTwister mersenneTwister;
     private int seed;
 
