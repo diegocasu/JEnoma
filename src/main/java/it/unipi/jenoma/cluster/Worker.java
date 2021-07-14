@@ -409,6 +409,7 @@ class Worker {
 
     private Population receivePopulationForShuffling() {
         OtpErlangObject msg = null;
+
         try {
             msg = mailBox.receive();
         } catch (OtpErlangExit | OtpErlangDecodeException otpErlangExit) {
@@ -420,6 +421,7 @@ class Worker {
 
             OtpErlangList individualsErlangList = (OtpErlangList)otpErlangTuple.elementAt(1);
             ArrayList<Individual> individulasForShuffling = new ArrayList<>();
+
             try {
                 for(OtpErlangObject object: individualsErlangList){
                     individulasForShuffling.add((Individual)((OtpErlangBinary)object).getObject());

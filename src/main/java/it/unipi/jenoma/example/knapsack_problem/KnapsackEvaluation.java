@@ -20,11 +20,11 @@ public class KnapsackEvaluation implements Evaluation, Serializable {
     public double evaluate(Individual individual, ClusterLogger logger) {
         KnapSackChromosome knapsackChromosome = (KnapSackChromosome) individual.getChromosome();
         double accumulator = 0;
-        double currentWeight =0;
-        for(int i = 0; i < this.itemList.length; i++){
-            accumulator   += (knapsackChromosome.getGene(i) == 1)? itemList[i].getProfit() : 0;
-            currentWeight += (knapsackChromosome.getGene(i) == 1)? itemList[i].getWeight() : 0;
-            if(currentWeight > this.maxWeight) {
+        double currentWeight = 0;
+        for (int i = 0; i < this.itemList.length; i++) {
+            accumulator   += (knapsackChromosome.getGene(i) > 0) ? (itemList[i].getProfit() * knapsackChromosome.getGene(i)) : 0;
+            currentWeight += (knapsackChromosome.getGene(i) > 0) ? (itemList[i].getWeight() * knapsackChromosome.getGene(i)) : 0;
+            if (currentWeight > this.maxWeight) {
                 individual.setFitness(0);
                 return 0;
             }

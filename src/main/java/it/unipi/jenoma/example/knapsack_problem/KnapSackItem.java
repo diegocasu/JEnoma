@@ -2,7 +2,7 @@ package it.unipi.jenoma.example.knapsack_problem;
 
 import java.io.Serializable;
 
-public class KnapSackItem  implements Serializable {
+public class KnapSackItem  implements Serializable,Comparable {
     double weight;
     double profit;
 
@@ -28,5 +28,10 @@ public class KnapSackItem  implements Serializable {
     }
     public double getRatio(){
         return this.profit/this.weight;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        return Double.compare(this.getRatio(), ((KnapSackItem)o).getRatio());
     }
 }
