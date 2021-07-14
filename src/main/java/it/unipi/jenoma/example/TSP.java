@@ -72,7 +72,7 @@ public class TSP implements Serializable {
     private final double MUTATION_PROBABILITY = 0.1;
     private final int GENERATIONS_LIMIT = 100;
     private final Configuration configuration;
-    private final PRNG prng;
+    private final PRNG mainPrng;
 
 
     /**
@@ -83,7 +83,7 @@ public class TSP implements Serializable {
         List<City> cities = new ArrayList<>();
 
         for (int i = 0; i < CITIES; i++)
-            cities.add(new City(i, prng.nextInt(MAX_X_COORDINATE + 1), prng.nextInt(MAX_Y_COORDINATE + 1)));
+            cities.add(new City(i, mainPrng.nextInt(MAX_X_COORDINATE + 1), mainPrng.nextInt(MAX_Y_COORDINATE + 1)));
 
         return cities;
     }
@@ -101,7 +101,7 @@ public class TSP implements Serializable {
         genes.add(startingCity);
 
         for (int i = 0; i <= otherCities.size() - 2; i++) {
-            int j = i + prng.nextInt(otherCities.size() - i);
+            int j = i + mainPrng.nextInt(otherCities.size() - i);
             Collections.swap(otherCities, i, j);
             genes.add(otherCities.get(i));
         }
@@ -155,7 +155,7 @@ public class TSP implements Serializable {
                 return false;
             }
 
-            private List<City> orderedCrossover(Individual parent1, Individual parent2) {
+            private List<City> orderedCrossover(Individual parent1, Individual parent2, PRNG prng) {
                 // Select a subset of consecutive values of the first parent, excluding the starting/ending cities.
                 int startingIndex = 1 + prng.nextInt(parent1.getChromosome().getLength() - 2);
                 int endIndex = startingIndex + prng.nextInt(parent1.getChromosome().getLength() - 1 - startingIndex);
@@ -194,8 +194,8 @@ public class TSP implements Serializable {
 
             @Override
             public List<Individual> cross(Individual parent1, Individual parent2, PRNG prng, ClusterLogger logger) {
-                Individual child1 = new Individual(new Chromosome<>(orderedCrossover(parent1, parent2)));
-                Individual child2 = new Individual(new Chromosome<>(orderedCrossover(parent2, parent1)));
+                Individual child1 = new Individual(new Chromosome<>(orderedCrossover(parent1, parent2, prng)));
+                Individual child2 = new Individual(new Chromosome<>(orderedCrossover(parent2, parent1, prng)));
 
                 List<Individual> offspring = new ArrayList<>();
                 offspring.add(child1);
@@ -232,7 +232,7 @@ public class TSP implements Serializable {
 
     public TSP(Configuration configuration) {
         this.configuration = configuration;
-        this.prng = new PRNG(configuration.getSeed());
+        this.mainPrng = new PRNG(configuration.getSeed());
     }
 
     /**
@@ -241,7 +241,7 @@ public class TSP implements Serializable {
      */
     public Pair<Population, Double> solve() {
         List<City> cities = generateCities();
-        City startingCity = cities.remove(prng.nextInt(cities.size()));
+        City startingCity = cities.remove(mainPrng.nextInt(cities.size()));
 
         System.out.printf("Number of cities: %s.%n", CITIES);
         System.out.printf("x coordinates randomly chosen in the interval: [0, %s].%n", MAX_X_COORDINATE);
