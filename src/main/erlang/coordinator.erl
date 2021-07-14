@@ -149,15 +149,15 @@ wait_for_cluster_setup(MissingWorkers, State) ->
   end.
 
 
-send_workload([], _, []) ->
+send_workload([], [], _) ->
   workloads_sent;
 
-send_workload([Worker|RemainingWorkers], WorkersFullList, [Workload|RemainingWorkloads]) ->
+send_workload([Worker|RemainingWorkers], [Workload|RemainingWorkloads], WorkersFullList) ->
   Worker ! {cluster_setup_phase, Workload, WorkersFullList},
-  send_workload(RemainingWorkers, WorkersFullList, RemainingWorkloads).
+  send_workload(RemainingWorkers, RemainingWorkloads, WorkersFullList).
 
-send_workload(Workers, Workload)->
-  send_workload(Workers, Workers, Workload).
+send_workload(Workers, Workloads) ->
+  send_workload(Workers, Workloads, Workers).
 
 
 send_elite_individuals(_, _, 0) ->

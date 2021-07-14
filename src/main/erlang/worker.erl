@@ -88,7 +88,7 @@ main(State) ->
         {result_collection_phase, PopulationChunk},
       main(State);
 
-    {shuffle, PopulationToBeSentForShuffling} ->
+    {shuffle_phase, PopulationToBeSentForShuffling} ->
       spawn(fun() -> broadcast(PopulationToBeSentForShuffling, State#state.workers) end),
       main(State);
 

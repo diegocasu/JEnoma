@@ -55,13 +55,4 @@ public class PRNG implements Serializable {
     public double nextDouble() {
         return this.mersenneTwister.nextDouble();
     }
-
-    /**
-     * Extracts a pseudorandom uniformly distributed boolean value.
-     * @return  a pseudorandom uniformly distributed boolean value.
-     */
-    public Boolean nextBoolean(){
-        return (Boolean) this.mersenneTwister.nextBoolean();
-    }
-
 }

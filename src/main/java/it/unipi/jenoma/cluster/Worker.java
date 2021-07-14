@@ -1,6 +1,18 @@
 package it.unipi.jenoma.cluster;
 
-import com.ericsson.otp.erlang.*;
+import com.ericsson.otp.erlang.OtpErlangAtom;
+import com.ericsson.otp.erlang.OtpErlangBinary;
+import com.ericsson.otp.erlang.OtpErlangDecodeException;
+import com.ericsson.otp.erlang.OtpErlangDouble;
+import com.ericsson.otp.erlang.OtpErlangExit;
+import com.ericsson.otp.erlang.OtpErlangInt;
+import com.ericsson.otp.erlang.OtpErlangList;
+import com.ericsson.otp.erlang.OtpErlangLong;
+import com.ericsson.otp.erlang.OtpErlangObject;
+import com.ericsson.otp.erlang.OtpErlangRangeException;
+import com.ericsson.otp.erlang.OtpErlangTuple;
+import com.ericsson.otp.erlang.OtpMbox;
+import com.ericsson.otp.erlang.OtpNode;
 
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
 import it.unipi.jenoma.operator.Crossover;
@@ -19,7 +31,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.*;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -347,7 +359,7 @@ class Worker {
         return true;
     }
 
-    private void executeAlgorithm(GeneticAlgorithm geneticAlgorithm) throws OtpErlangDecodeException, OtpErlangExit{
+    private void executeAlgorithm(GeneticAlgorithm geneticAlgorithm) {
         Pair<PRNG, List<PRNG>> prngs = createPRNGs(geneticAlgorithm.getConfiguration().getSeed());
         PRNG mainGenerator = prngs.getLeft();
         List<PRNG> threadGenerators = prngs.getRight();
@@ -444,7 +456,7 @@ class Worker {
             individuals[i] = new OtpErlangBinary(pop.getIndividual(i));
         }
         OtpErlangObject[] body = new OtpErlangObject[2];
-        body[0] = ClusterUtils.Atom.SHUFFLE;
+        body[0] = ClusterUtils.Atom.SHUFFLE_PHASE;
         body[1] = new OtpErlangList(individuals);
 
         mailBox.send(
