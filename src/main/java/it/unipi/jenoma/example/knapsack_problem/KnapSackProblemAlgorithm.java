@@ -44,7 +44,7 @@ public class KnapSackProblemAlgorithm {
             List<Integer> genes = new ArrayList<>();
 
             for (int j = 0; j < itemsList.length; j++)
-                genes.add(prng.nextInt(30/(j+1)));
+                genes.add(prng.nextInt(80/(j+1)));
 
             KnapSackChromosome knapsackChromosome = new KnapSackChromosome(genes);
             Individual individual = new Individual(knapsackChromosome);
@@ -55,13 +55,13 @@ public class KnapSackProblemAlgorithm {
 
         Crossover crossover = new UniformCrossover(0.4);
 
-        Selection selection = new TournamentSelection(50,20);
+        Selection selection = new TournamentSelection(100,30);
 
         KnapSackMutation knapSackMutation = new KnapSackMutation(0.01);
 
         Elitism elitism = new Elitism(30);
 
-        TerminationCondition<Boolean> terminationCondition = new NGenerationsElapsed(20);
+        TerminationCondition<Boolean> terminationCondition = new NGenerationsElapsed(100);
 
         KnapsackEvaluation knapsackEvaluation = new KnapsackEvaluation(itemsList, maxWeight);
 

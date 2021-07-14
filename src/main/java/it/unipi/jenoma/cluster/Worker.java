@@ -15,6 +15,7 @@ import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
 
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
+import it.unipi.jenoma.algorithm.Statistics;
 import it.unipi.jenoma.operator.Crossover;
 import it.unipi.jenoma.operator.Elitism;
 import it.unipi.jenoma.operator.Evaluation;
@@ -46,7 +47,8 @@ class Worker {
     private WorkerLogger workerLogger;
     private OtpNode javaNode;
     private OtpMbox mailBox;
-
+    private List<Statistics> statisticsList;
+    private Statistics lastStatistic;
 
     private boolean startJavaNode() {
         try {
@@ -299,17 +301,28 @@ class Worker {
 
         List<Individual> elite = original.getIndividuals(0, numberOfCandidates);
         List<Individual> worst = offspring.getIndividuals(0, numberOfCandidates);
+        lastStatistic.fittestIndividual = worst.get(worst.size() - 1);
+
+        lastStatistic.computationTime = Math.abs(lastStatistic.computationTime - System.currentTimeMillis());
+        lastStatistic.communicationTime = System.currentTimeMillis();
 
         sendIndividualsForElitism(elite, worst);
         receiveIndividualsForElitism(offspring);
     }
 
     private boolean endAlgorithm(Population offspring, int generationsElapsed, TerminationCondition<?> termination) {
+        lastStatistic.communicationTime = Math.abs(lastStatistic.communicationTime - System.currentTimeMillis());
+
+        long terminationConditionTimestamp = System.currentTimeMillis();
+        Object terminationMap = termination.map(offspring, generationsElapsed, workerLogger);
+        lastStatistic.computationTime += System.currentTimeMillis() - terminationConditionTimestamp;
+
+        long communicationTimestamp = System.currentTimeMillis();
         sendToErlangNode(
                 new OtpErlangTuple(
                         new OtpErlangObject[] {
                                 ClusterUtils.Atom.GENERATION_END_PHASE,
-                                new OtpErlangBinary(termination.map(offspring, generationsElapsed, workerLogger))
+                                new OtpErlangBinary(terminationMap)
                         }));
 
         try {
@@ -341,6 +354,7 @@ class Worker {
             System.exit(0);
         }
 
+        lastStatistic.communicationTime = System.currentTimeMillis() - communicationTimestamp;
         return true;
     }
 
@@ -389,6 +403,10 @@ class Worker {
         while (true) { // Algorithm loop.
             Population workingPopulation = geneticAlgorithm.getPopulation().clone();
 
+            lastStatistic = new Statistics();
+            lastStatistic.workerID = mailBox.getName();
+            lastStatistic.computationTime = System.currentTimeMillis();
+
             Population matingPool = geneticAlgorithm.getSelection().select(workingPopulation, mainGenerator, workerLogger);
             if (matingPool == null || matingPool.getSize() < 2) {
                 workerLogger.log("The selection stage failed. Less than two individuals selected.");
@@ -397,6 +415,7 @@ class Worker {
             workerLogger.log("The selection stage succeeded.");
 
             Population offspring = cross(matingPool, geneticAlgorithm.getPopulation().getSize(), geneticAlgorithm.getCrossover(), threadGenerators);
+
             if (offspring == null) {
                 workerLogger.log("The crossover stage failed.");
                 return;
@@ -415,6 +434,7 @@ class Worker {
             }
             workerLogger.log("The evaluation stage succeeded.");
 
+
             if (geneticAlgorithm.getElitism().getNumberOfIndividuals() > 0) {
                 applyElitism(geneticAlgorithm.getPopulation(), offspring, geneticAlgorithm.getElitism());
                 workerLogger.log("The elitism stage succeeded.");
@@ -430,6 +450,9 @@ class Worker {
             Population shuffledPopulation = shuffle(offspring);
             workerLogger.log("The shuffling stage succeeded.");
             geneticAlgorithm.setPopulation(shuffledPopulation);
+
+            lastStatistic.communicationTime += System.currentTimeMillis() - communicationTimestamp;
+            this.statisticsList.add(lastStatistic);
         }
     }
 
@@ -472,6 +495,7 @@ class Worker {
         this.loggerCoordinatorHost = loggerCoordinatorHost;
         this.numberOfThreads = Runtime.getRuntime().availableProcessors();
         this.executorService = Executors.newFixedThreadPool(numberOfThreads);
+        this.statisticsList  = new ArrayList<>();
     }
 
     public void start() {
