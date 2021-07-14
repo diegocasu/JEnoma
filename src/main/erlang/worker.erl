@@ -12,7 +12,8 @@
   java_worker_name,
   workers,
   elitism_individuals = [],
-  received_individuals_for_shuffling = [],
+  shuffling_node_id,
+  shuffling_individuals = [],
   shuffling_workers_ready = 0
 }).
 
@@ -46,7 +47,10 @@ main(State) ->
 
     {cluster_setup_phase, Workload, Workers} ->
       {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
-      NewState = State#state{workers = Workers},
+      NewState = State#state{
+        workers = Workers,
+        shuffling_node_id = index_of({State#state.this_process_name, node()}, Workers)
+      },
       main(NewState);
 
     {elitism_phase, Elite, Worst} ->
@@ -88,47 +92,60 @@ main(State) ->
         {result_collection_phase, PopulationChunk},
       main(State);
 
-    {shuffle_phase, PopulationToBeSentForShuffling} ->
-      spawn(fun() -> broadcast(PopulationToBeSentForShuffling, State#state.workers) end),
-      main(State);
-
-    {population_fragment, Individual} ->
-      NewState = State#state{received_individuals_for_shuffling = [Individual | State#state.received_individuals_for_shuffling]},
-      main(NewState);
-
-    all_population_fragment_sent ->
+    {shuffle_phase, worker_ready} ->
       if
         State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
-          {State#state.java_worker_process, State#state.java_worker_name} ! {shuffle_complete, State#state.received_individuals_for_shuffling},
+          % Sort individuals by NodeId. If the population subjected to the shuffling is the same,
+          % this ensures that the shuffling returns the same results over multiple invocations,
+          % even if the calls to broadcast() of distinct nodes are interleaved differently.
+          IndividualsByNodeId = lists:sort(fun({NodeIdA, _}, {NodeIdB, _}) -> NodeIdA =< NodeIdB end, State#state.shuffling_individuals),
+          {State#state.java_worker_process, State#state.java_worker_name} ! [Individual || {_, Individual} <- IndividualsByNodeId],
           NewState = State#state{
-            received_individuals_for_shuffling = [],
+            shuffling_individuals = [],
             shuffling_workers_ready = 0
           },
           main(NewState);
         true ->
-          NewState = State#state{
-            shuffling_workers_ready = State#state.shuffling_workers_ready + 1
-          },
+          NewState = State#state{shuffling_workers_ready = State#state.shuffling_workers_ready + 1},
           main(NewState)
       end;
 
-    _->
-      %TODO: handle malformed messages
-      os:cmd("touch ~/TROIAIO.txt"),
+    {shuffle_phase, {NodeId, Individual}} ->
+      NewState = State#state{shuffling_individuals = [{NodeId, Individual} | State#state.shuffling_individuals]},
+      main(NewState);
+
+    {shuffle_phase, Population} ->
+      broadcast(Population, State#state.workers, State#state.shuffling_node_id),
+      main(State);
+
+    _ ->
       main(State)
   end.
 
 
-broadcast(Population, Peers) ->
-  broadcast(Population, Peers, 0).
+broadcast(Population, Peers, NodeId) ->
+  broadcast(Population, Peers, NodeId, 0).
 
-broadcast([H | T], Peers, Index) ->
-  %% lists:nth(Index + 1, Peers) ! {population_fragment, H},
-  lists:foreach(fun(Peer) -> Peer ! {population_fragment, H} end, Peers), % TODO: WHY??????????
-  broadcast(T, Peers, Index + 1 rem length(Peers));
+broadcast([], Peers, _, _) ->
+  lists:foreach(fun(Peer) -> Peer ! {shuffle_phase, worker_ready} end, Peers);
 
-broadcast([], Peers, _) ->
-  lists:foreach(fun(Peer) -> Peer ! all_population_fragment_sent end, Peers).
+broadcast([Individual|Population], Peers, NodeId, Index) ->
+  lists:nth(Index + 1, Peers) ! {shuffle_phase, {NodeId, Individual}},
+  broadcast(Population, Peers, NodeId, (Index + 1) rem length(Peers)).
+
+
+index_of(Item, List) ->
+  index_of(Item, List, 1).
+
+index_of(_, [], _) ->
+  not_found;
+
+index_of(Item, [Item|_], Index) ->
+  Index;
+
+index_of(Item, [_|T], Index) ->
+  index_of(Item, T, Index + 1).
+
 
 stop_java_node(State) ->
   {State#state.java_worker_process, State#state.java_worker_name} ! stop.

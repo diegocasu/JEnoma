@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -359,6 +358,47 @@ class Worker {
         return true;
     }
 
+    private Population shuffle(Population population) {
+        OtpErlangBinary[] individuals = new OtpErlangBinary[population.getSize()];
+        for (int i = 0; i < population.getSize(); i++)
+            individuals[i] = new OtpErlangBinary(population.getIndividual(i));
+
+        mailBox.send(
+                ClusterUtils.Process.WORKER,
+                ClusterUtils.compose(ClusterUtils.Node.ERLANG, host),
+                new OtpErlangTuple(
+                        new OtpErlangObject[] {
+                                ClusterUtils.Atom.SHUFFLE_PHASE,
+                                new OtpErlangList(individuals)
+                        }));
+
+        List<Individual> shuffledIndividuals = new ArrayList<>();
+
+        try {
+            OtpErlangObject msg = mailBox.receive();
+
+            if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.STOP)) {
+                workerLogger.log("The shuffle stage failed.");
+                workerLogger.log("Stopping the execution.");
+                stopWorkerLogger();
+                stopJavaNode();
+                System.exit(0);
+            }
+
+            if (msg instanceof OtpErlangList msgList) {
+                for (OtpErlangObject individual : msgList)
+                    shuffledIndividuals.add((Individual) ((OtpErlangBinary) individual).getObject());
+            }
+        } catch (OtpErlangDecodeException | OtpErlangExit e) {
+            workerLogger.log(ExceptionUtils.getStackTrace(e));
+            stopWorkerLogger();
+            stopJavaNode();
+            System.exit(0);
+        }
+
+        return new Population(shuffledIndividuals);
+    }
+
     private void executeAlgorithm(GeneticAlgorithm geneticAlgorithm) {
         Pair<PRNG, List<PRNG>> prngs = createPRNGs(geneticAlgorithm.getConfiguration().getSeed());
         PRNG mainGenerator = prngs.getLeft();
@@ -405,66 +445,10 @@ class Worker {
             if (endAlgorithm(offspring, geneticAlgorithm.getGenerationsElapsed(), geneticAlgorithm.getTerminationCondition()))
                 return;
 
-            // TODO: shuffling -> returns shuffledPopulation
-            workerLogger.log("Starting the shuffling phase");
-
-            sendShuffleMessageToErlangNode(offspring);
-
-            // TODO: after shuffling --> geneticAlgorithm.setPopulation(shuffledPopulation)
-            Population shuffledPop = receivePopulationForShuffling();
-            if(shuffledPop == null){
-                workerLogger.log("Shuffled population is null");
-            }
-            geneticAlgorithm.setPopulation(shuffledPop);
+            Population shuffledPopulation = shuffle(offspring);
+            workerLogger.log("The shuffling stage succeeded.");
+            geneticAlgorithm.setPopulation(shuffledPopulation);
         }
-    }
-
-    private Population receivePopulationForShuffling() {
-        OtpErlangObject msg = null;
-        try {
-            msg = mailBox.receive();
-        } catch (OtpErlangExit | OtpErlangDecodeException otpErlangExit) {
-           workerLogger.log(Arrays.toString(otpErlangExit.getStackTrace()));
-        }
-
-        if (msg instanceof OtpErlangTuple otpErlangTuple &&
-                otpErlangTuple.elementAt(0).equals(ClusterUtils.Atom.SHUFFLE_COMPLETE)) {
-
-            OtpErlangList individualsErlangList = (OtpErlangList)otpErlangTuple.elementAt(1);
-            ArrayList<Individual> individulasForShuffling = new ArrayList<>();
-            try {
-                for(OtpErlangObject object: individualsErlangList){
-                    individulasForShuffling.add((Individual)((OtpErlangBinary)object).getObject());
-                }
-            }catch (Exception e){
-                workerLogger.log(Arrays.toString(e.getStackTrace()));
-                workerLogger.log(e.getMessage());
-            }
-
-            workerLogger.log("Retrieved population, ready for shuffling");
-            return new Population(individulasForShuffling);
-        }
-
-        return null;
-
-    }
-
-    private void sendShuffleMessageToErlangNode(Population pop){
-
-        OtpErlangBinary[] individuals = new OtpErlangBinary[pop.getSize()];
-        for(int i = 0; i< pop.getSize(); i++){
-            individuals[i] = new OtpErlangBinary(pop.getIndividual(i));
-        }
-        OtpErlangObject[] body = new OtpErlangObject[2];
-        body[0] = ClusterUtils.Atom.SHUFFLE_PHASE;
-        body[1] = new OtpErlangList(individuals);
-
-        mailBox.send(
-                ClusterUtils.Process.WORKER,
-                ClusterUtils.compose(ClusterUtils.Node.ERLANG, host),
-                new OtpErlangTuple(body)
-        );
-        workerLogger.log("SHUFFLE message sent to erlang node");
     }
 
     private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
