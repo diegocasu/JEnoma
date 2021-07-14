@@ -38,6 +38,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 
+/**
+ * A Java worker in the cluster of machines, able to execute a genetic algorithm on a portion
+ * of the overall population. A worker executes the evaluation, crossover and mutation stages with
+ * <code>numberOfThreads = Runtime.getRuntime().availableProcessors()</code> threads,
+ * while it executes the selection stage with a single thread.
+ * It communicates with the Erlang node on the same machine to perform
+ * in a distributed way the elitism, shuffle and termination stages.
+ */
 class Worker {
     private final String host;
     private final String loggerCoordinatorHost;
@@ -48,6 +56,10 @@ class Worker {
     private OtpMbox mailBox;
 
 
+    /**
+     * Starts the Java <code>OtpNode</code> in the current machine.
+     * @return  true if the Java <code>OtpNode</code> is started correctly, false otherwise.
+     */
     private boolean startJavaNode() {
         try {
             javaNode = new OtpNode(ClusterUtils.compose(ClusterUtils.Node.JAVA, host));
@@ -61,6 +73,11 @@ class Worker {
         return true;
     }
 
+    /**
+     * Starts the worker logger node in the current machine. The worker logger is able
+     * to redirect log messages to the coordinator logger running in the coordinator machine.
+     * @return  true if the worker logger node is started correctly, false otherwise.
+     */
     private boolean startWorkerLogger() {
         try {
             workerLogger = new WorkerLogger(
@@ -74,21 +91,35 @@ class Worker {
         return true;
     }
 
+    /**
+     * Stops the Java <code>OtpNode</code> and deallocates its resources.
+     */
     private void stopJavaNode() {
         executorService.shutdown();
         mailBox.close();
         javaNode.close();
     }
 
+    /**
+     * Stops the worker logger and deallocates its resources.
+     */
     private void stopWorkerLogger() {
         workerLogger.stop();
     }
 
+    /**
+     * Stops the Java <code>OtpNode</code> and the worker logger.
+     * Utility method to avoid missing some closing steps.
+     */
     private void stopAllNodes() {
         stopWorkerLogger();
         stopJavaNode();
     }
 
+    /**
+     * Sends a given message to the Erlang node.
+     * @param msg  the message to send to the Erlang node.
+     */
     private void sendToErlangNode(OtpErlangObject msg) {
         mailBox.send(
                 ClusterUtils.Process.WORKER,
@@ -96,8 +127,16 @@ class Worker {
                 msg);
     }
 
+    /**
+     * Creates one main PRNG for generating values inside the main thread, and
+     * <code>numberOfThreads</code> different PRNGs to do the same inside the working threads.
+     * The PRNGs are seeded differently starting from a base seed, as specified in the
+     * documentation of <code>PRNG</code>.
+     * @param seed  the base seed used to derive the seeds for the PRNGs.
+     * @return      a pair holding a main PRNG and the list of <code>numberOfThreads</code>
+     *              PRNGs for the working threads.
+     */
     private Pair<PRNG, List<PRNG>> createPRNGs(int seed) {
-        // Create one main PRNG for generating values outside threads and N to do it inside threads.
         int hostSeed = Objects.hash(ClusterUtils.compose(ClusterUtils.Node.JAVA, host), seed);
 
         PRNG mainGenerator = new PRNG(hostSeed);
@@ -109,6 +148,14 @@ class Worker {
         return new ImmutablePair<>(mainGenerator, threadGenerators);
     }
 
+    /**
+     * Executes the evaluation stage with multiple threads, assigning an equal portion of the population
+     * to each of them. The threads work on different subsets of the population, so no particular
+     * synchronization patterns are required.
+     * @param population  the population to be evaluated.
+     * @param evaluation  the <code>Evaluation</code> operator to be applied.
+     * @return            true if the evaluation stage is completed successfully, false otherwise.
+     */
     private boolean evaluate(Population population, Evaluation evaluation) {
         int chunkSize = population.getSize()/numberOfThreads;
         int threadsToSpawn = chunkSize > 0 ? numberOfThreads : 1;
@@ -139,16 +186,29 @@ class Worker {
         return population != null && population.getSize() != 0;
     }
 
+    /**
+     * Executes the crossover stage with multiple threads, so that random individuals are recombined
+     * until the overall offspring is as large as the given size (in this case, the original population
+     * size). Each thread performs a certain number of crossover operations between randomly chosen
+     * individual: since a crossover operation is expected to not modify the involved parents,
+     * the threads operate on individuals without synchronization patterns; the only synchronization
+     * is performed at the end to generate the final offspring.<br>
+     * Supposing that each crossover generates two children, the default number of overall crossover
+     * operations per execution round is chosen to be <code>offspringSize/2</code>;
+     * the number of operations done by a thread is chosen accordingly.
+     * However, since the user is free to return one or more than
+     * two individuals, the size of the offspring is checked, so that:<br>
+     * 1) additional execution rounds are scheduled if <code>offspringSize</code> is not reached;<br>
+     * 2) the offspring is shrank if its size exceeds <code>offspringSize</code>.
+     * @param matingPool        the population of individuals from which parents are drawn.
+     * @param offspringSize     the size of the final offspring.
+     * @param crossover         the crossover operator.
+     * @param threadGenerators  the list of <code>numberOfThreads</code> PRNGs
+     *                          to be assigned to the worker threads.
+     * @return                  null if an error occurred while executing the threads,
+     *                          the generated offspring otherwise.
+     */
     private Population cross(Population matingPool, int offspringSize, Crossover crossover, List<PRNG> threadGenerators) {
-        /* Random individuals are recombined until the overall offspring is as large as the given size
-         * (original population size). N threads are launched, each one executing a certain number of
-         * cross operations between individuals. Supposing that each crossover generates two children,
-         * the default number of overall crossover operations per execution round is chosen to be
-         * offspringSize/2. However, since the user is free to return 1 or more than 2 individuals,
-         * the size of the offspring is checked, so that
-         * 1) additional execution rounds are scheduled if offspringSize is not reached;
-         * 2) the offspring is shrank if its size exceeds offspringSize.
-         */
         Population offspring = new Population(new ArrayList<>());
         List<Callable<List<Individual>>> crossoverTasks = new ArrayList<>();
 
@@ -166,10 +226,9 @@ class Worker {
                         int secondParent = prng.nextInt(matingPool.getSize());
 
                         if (firstParent != secondParent) {
-                            List<Individual> children = crossover.cross(
-                                    matingPool.getIndividual(firstParent),
-                                    matingPool.getIndividual(secondParent),
-                                    prng, workerLogger);
+                            List<Individual> children = crossover.cross(matingPool.getIndividual(firstParent),
+                                                                        matingPool.getIndividual(secondParent),
+                                                                        prng, workerLogger);
                             partialOffspring.addAll(children);
                             counter++;
                         }
@@ -199,6 +258,17 @@ class Worker {
         }
     }
 
+    /**
+     * Executes the mutation stage with multiple threads, assigning an equal portion of the population
+     * to each of them. The threads work on different subsets of the population, so no particular
+     * synchronization patterns are required.
+     * @param offspring         the population to be mutated.
+     * @param mutation          the mutation operator.
+     * @param threadGenerators  the list of <code>numberOfThreads</code> PRNGs
+     *                          to be assigned to the worker threads.
+     * @return                  true if the evaluation stage is completed successfully,
+     *                          false otherwise.
+     */
     private boolean mutate(Population offspring, Mutation mutation, List<PRNG> threadGenerators) {
         int chunkSize = offspring.getSize()/numberOfThreads;
         int threadsToSpawn = chunkSize > 0 ? numberOfThreads : 1;
@@ -229,6 +299,12 @@ class Worker {
         return true;
     }
 
+    /**
+     * Sends the best individuals of the previous generation and the worst individuals
+     * of the current one to the Erlang node, so that the distributed elitism stage can be executed.
+     * @param elite  the best individuals of the previous generation.
+     * @param worst  the worst individuals of the current generation.
+     */
     private void sendIndividualsForElitism(List<Individual> elite, List<Individual> worst) {
         // Both "elite" and "worst have the same number of elements by construction.
         int numberOfCandidates = elite.size();
@@ -259,6 +335,14 @@ class Worker {
                         }));
     }
 
+    /**
+     * Receives a subset of the best individuals of the previous generation and uses them
+     * to replace a subset of the worst individuals of the current generation. If the current
+     * worker is not involved in the substitutions, it simply waits for the elitism stage to end.
+     * If it is involved, it receives the indexes of the worst individuals to be substituted along
+     * with the substituting individuals.
+     * @param offspring  the current generation of individuals to be modified.
+     */
     private void receiveIndividualsForElitism(Population offspring) {
         try {
             OtpErlangObject msg = mailBox.receive();
@@ -292,6 +376,19 @@ class Worker {
         }
     }
 
+    /**
+     * Applies the elitism strategy to the current population. The method sends the
+     * best individuals of the previous generation and the worst ones of the current generation
+     * to the Erlang node, so that the distributed elitism stage can be executed. Then, if involved
+     * in the replacement, it receives the individuals to insert into the current generation and
+     * the relative instructions about the substitution.<br>
+     * If <i>N</i> is the number of individuals specified by the elitism operator, each worker sends
+     * its best and worst <i>N</i> individuals to the coordinator, since a single worker
+     * could potentially hold all the best and worst individuals at the same time.
+     * @param original   the previous generation of individuals, i.e. the one that generated the offspring.
+     * @param offspring  the current generation of individuals.
+     * @param elitism    the elitism operator.
+     */
     private void applyElitism(Population original, Population offspring, Elitism elitism) {
         int numberOfCandidates = Math.min(elitism.getNumberOfIndividuals(), original.getSize());
         original.sortByDescendingFitness();
@@ -304,6 +401,16 @@ class Worker {
         receiveIndividualsForElitism(offspring);
     }
 
+    /**
+     * Checks if the termination condition of the algorithm is satisfied. The worker computes in isolation
+     * the <code>map</code> method specified by the termination condition and sends the result
+     * to the coordinator. Then, it waits for the coordinator to establish if the algorithm
+     * has ended or not.
+     * @param offspring           the current generations of individuals.
+     * @param generationsElapsed  the number of generations elapsed so far.
+     * @param termination         the termination condition operator.
+     * @return                    true if the termination condition is satisfied, false otherwise.
+     */
     private boolean endAlgorithm(Population offspring, int generationsElapsed, TerminationCondition<?> termination) {
         sendToErlangNode(
                 new OtpErlangTuple(
@@ -344,6 +451,14 @@ class Worker {
         return true;
     }
 
+    /**
+     * Shuffles the population of individuals. The worker sends the local portion of the population
+     * to the Erlang node and waits until the shuffled population is received. The shuffle is distributed,
+     * so the individuals composing the shuffled population are obtained from the global one, i.e. they
+     * are received from different machines of the cluster.
+     * @param population  the population to be shuffled.
+     * @return            the shuffled population.
+     */
     private Population shuffle(Population population) {
         OtpErlangBinary[] individuals = new OtpErlangBinary[population.getSize()];
         for (int i = 0; i < population.getSize(); i++)
@@ -381,7 +496,13 @@ class Worker {
         return new Population(shuffledIndividuals);
     }
 
-    private void executeAlgorithm(GeneticAlgorithm geneticAlgorithm) {
+    /**
+     * Executes the genetic algorithm, performing the selection, crossover, mutation, evaluation and
+     * elitism stages, and checking the termination condition. If a new iteration must be executed,
+     * a shuffling of the overall population is performed.
+     * @param geneticAlgorithm  the genetic algorithm to be executed.
+     */
+    private void execute(GeneticAlgorithm geneticAlgorithm) {
         Pair<PRNG, List<PRNG>> prngs = createPRNGs(geneticAlgorithm.getConfiguration().getSeed());
         PRNG mainGenerator = prngs.getLeft();
         List<PRNG> threadGenerators = prngs.getRight();
@@ -433,6 +554,14 @@ class Worker {
         }
     }
 
+    /**
+     * Waits until a message is received, executing the appropriate actions: if a genetic algorithm
+     * (workload) is received, the execution of the stages is started; if a stop command is received,
+     * the node is shut down. If the execution of a stage in the genetic algorithm fails, the worker
+     * either suspends its operations and waits to be stopped by an external message.
+     * @throws OtpErlangDecodeException  if an error occurs while decoding a message.
+     * @throws OtpErlangExit             if the Java <code>OtpNode</code> fails.
+     */
     private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
         boolean waitForStop = false;
 
@@ -460,7 +589,7 @@ class Worker {
                     continue;
                 }
 
-                executeAlgorithm(geneticAlgorithm);
+                execute(geneticAlgorithm);
                 waitForStop = true;
                 workerLogger.log("Waiting for a stop command.");
             }
@@ -474,6 +603,10 @@ class Worker {
         this.executorService = Executors.newFixedThreadPool(numberOfThreads);
     }
 
+    /**
+     * Starts the worker, initializing the logger and the Java <code>OtpNode</code>, and
+     * enters the main receive loop, waiting for the genetic algorithm (workload) to be sent.
+     */
     public void start() {
         if (!startWorkerLogger())
             return;

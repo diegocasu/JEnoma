@@ -352,8 +352,8 @@ public class Coordinator {
      * sent by the workers at each generation to determine if the algorithm must end, and
      * eventually merging the final results to obtain the final population.
      * @return  the final population if the algorithm terminates correctly, an empty population otherwise.
-     * @throws OtpErlangDecodeException  if an error occurs while decoding an Erlang message.
-     * @throws OtpErlangExit             if the communication channel with the Erlang node fails.
+     * @throws OtpErlangDecodeException  if an error occurs while decoding a message.
+     * @throws OtpErlangExit             if the Java <code>OtpNode</code> fails.
      */
     private Population waitForTermination() throws OtpErlangDecodeException, OtpErlangExit {
         Population finalPopulation = new Population(new ArrayList<>());
