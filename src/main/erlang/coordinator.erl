@@ -53,9 +53,19 @@ main(State) ->
       main(State);
 
     {elitism_phase, collection_completed} ->
-      % Sort best individuals by descending order, worst individuals by ascending order.
-      Elite = lists:sort(fun({_, FitnessA}, {_, FitnessB}) -> FitnessB =< FitnessA end, State#state.elitism_elite_individuals),
-      Worst = lists:sort(fun({FitnessA, _, _}, {FitnessB, _, _}) -> FitnessA =< FitnessB end, State#state.elitism_worst_individuals),
+      % Sort the best individuals by descending order, the worst individuals by ascending order.
+      % If two individuals have the same fitness, they are sorted by node name, ensuring that
+      % the elitism returns the same results over multiple invocations, even if the sending operations
+      % made by distinct nodes are interleaved differently.
+      Elite = lists:sort(
+        fun({_, FitnessA, {_, NodeA}}, {_, FitnessB, {_, NodeB}}) ->
+          {FitnessB, NodeB} =< {FitnessA, NodeA} end,
+        State#state.elitism_elite_individuals),
+
+      Worst = lists:sort(
+        fun({FitnessA, _, {_, NodeA}}, {FitnessB, _, {_, NodeB}}) ->
+          {FitnessA, NodeA} =< {FitnessB, NodeB} end,
+        State#state.elitism_worst_individuals),
 
       send_elite_individuals(Elite, Worst, State#state.elitism_number_individuals),
       lists:foreach(fun(Worker) -> Worker ! {elitism_phase, end_elitism} end, State#state.workers),
@@ -166,7 +176,7 @@ send_elite_individuals(_, _, 0) ->
 send_elite_individuals([], [], _) ->
   ok;
 
-send_elite_individuals([{EliteIndividual, _}|Elite], [{_, WorstIndex, Worker}|Worst], Remaining) ->
+send_elite_individuals([{EliteIndividual, _, _}|Elite], [{_, WorstIndex, Worker}|Worst], Remaining) ->
   Worker ! {elitism_phase, {EliteIndividual, WorstIndex}},
   send_elite_individuals(Elite, Worst, Remaining - 1).
 

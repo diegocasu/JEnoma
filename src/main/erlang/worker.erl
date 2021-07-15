@@ -50,9 +50,10 @@ main(State) ->
       main(NewState);
 
     {elitism_phase, Elite, Worst} ->
+      EliteWithSource = [{Individual, Fitness, {State#state.this_process_name, node()}} || {Individual, Fitness} <- Elite],
       WorstWithSource = [{Fitness, Index, {State#state.this_process_name, node()}} || {Fitness, Index} <- Worst],
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} !
-        {elitism_phase, Elite, WorstWithSource},
+        {elitism_phase, EliteWithSource, WorstWithSource},
       main(State);
 
     {elitism_phase, end_elitism} ->
