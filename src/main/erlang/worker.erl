@@ -1,8 +1,19 @@
+%% @doc
+%% Module representing the Erlang worker node instantiated on a worker machine.
+%% It is responsible for: <br/>
+%% 1) starting the Java worker on its same machine; <br/>
+%% 2) receiving the workloads; <br/>
+%% 3) sending the elite and worst individuals, the partial termination condition and the final results
+%%    computed by the Java worker to the coordinator; <br/>
+%% 4) shuffling the population used by the Java worker by exchanging individuals
+%%    with the other workers of the cluster; <br/>
+%% 5) stopping itself and the Java worker when the coordinator sends a stop signal.
 -module(worker).
 
 %% API
 -export([start/1, main/1]).
 
+%% State of the worker.
 -record(state, {
   this_process_name,
   erlang_coordinator_process,
@@ -17,6 +28,18 @@
 }).
 
 
+%% ====================================================================
+%% Public API
+%% ====================================================================
+
+%% @spec start(Args :: list()) -> atom().
+%% @doc
+%% Starts the Erlang worker node by spawning a dedicated process running the main/1 function and
+%% executes the shell command to start the Java worker.
+%% The list passed as argument must contain six atoms, representing the name of the process,
+%% the name of the Erlang coordinator process, the name of the Erlang coordinator node,
+%% the name of the jar containing the files of the project, the name of the Java worker process
+%% and the name of the Java worker node, respectively.
 start(Args) ->
   State = #state{
     this_process_name = lists:nth(1, Args),
@@ -26,14 +49,20 @@ start(Args) ->
     java_worker_process = lists:nth(5, Args),
     java_worker_name = lists:nth(6, Args)
   },
-  register(State#state.this_process_name, spawn(?MODULE, main, [State])),
 
   ThisHost = lists:nth(2, string:tokens(atom_to_list(node()), "@")),
   LoggerCoordinatorHost = lists:nth(2, string:tokens(atom_to_list(State#state.erlang_coordinator_name), "@")),
   JavaNodeCmd = io_lib:format("java -cp ~s it.unipi.jenoma.cluster.Worker ~s ~s", [State#state.jar_file, ThisHost, LoggerCoordinatorHost]),
-  spawn(fun() -> os:cmd(lists:flatten(JavaNodeCmd)) end).
+  spawn(fun() -> os:cmd(lists:flatten(JavaNodeCmd)) end),
+  register(State#state.this_process_name, spawn(?MODULE, main, [State])).
 
 
+%% @spec main(State :: record()) -> no_return().
+%% @doc
+%% Waits for messages sent by the Erlang coordinator or by the Java worker,
+%% executing the appropriate management actions. The function stays in an infinite receive
+%% loop until the coordinator sends a stop signal, triggering the shutdown of this node and
+%% of the Java worker.
 main(State) ->
   receive
     stop ->
@@ -67,8 +96,7 @@ main(State) ->
       main(NewState);
 
     {elitism_phase, NewIndividual} ->
-      IndividualsList = [NewIndividual | State#state.elitism_individuals],
-      NewState = State#state{elitism_individuals = IndividualsList},
+      NewState = State#state{elitism_individuals = [NewIndividual | State#state.elitism_individuals]},
       main(NewState);
 
     {generation_end_phase, algorithm_continue} ->
@@ -92,9 +120,9 @@ main(State) ->
     {shuffle_phase, worker_ready} ->
       if
         State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
-          % Sort individuals by node name. If the population subjected to the shuffling is the same,
-          % this ensures that the shuffling returns the same results over multiple invocations,
-          % even if the calls to broadcast() of distinct nodes are interleaved differently.
+          %% Sort individuals by node name. If the population to be shuffled is the same,
+          %% this ensures that the shuffle returns the same results over multiple invocations,
+          %% even if the calls to broadcast() of distinct nodes are interleaved differently.
           IndividualsByNodeId = lists:sort(fun({NodeA, _}, {NodeB, _}) -> NodeA =< NodeB end, State#state.shuffling_individuals),
           {State#state.java_worker_process, State#state.java_worker_name} ! [Individual || {_, Individual} <- IndividualsByNodeId],
           NewState = State#state{
@@ -120,6 +148,14 @@ main(State) ->
   end.
 
 
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+%% @doc
+%% Scatters the individuals of the given population to all
+%% the workers in the cluster. The distribution is done sending one individual
+%% to each worker (this node included) following a round robin strategy.
 broadcast(Population, Peers, NodeId) ->
   broadcast(Population, Peers, NodeId, 0).
 
@@ -131,11 +167,12 @@ broadcast([Individual|Population], Peers, NodeId, Index) ->
   broadcast(Population, Peers, NodeId, (Index + 1) rem length(Peers)).
 
 
+%% @doc Sends a stop command to the Java worker.
 stop_java_node(State) ->
   {State#state.java_worker_process, State#state.java_worker_name} ! stop.
 
 
+%% @doc Terminates the worker process, deallocating its resources.
 stop(Reason) ->
   init:stop(),
   exit(Reason).
-
