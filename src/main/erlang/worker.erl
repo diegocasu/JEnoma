@@ -12,7 +12,6 @@
   java_worker_name,
   workers,
   elitism_individuals = [],
-  shuffling_node_id,
   shuffling_individuals = [],
   shuffling_workers_ready = 0
 }).
@@ -47,10 +46,7 @@ main(State) ->
 
     {cluster_setup_phase, Workload, Workers} ->
       {State#state.java_worker_process, State#state.java_worker_name} ! Workload,
-      NewState = State#state{
-        workers = Workers,
-        shuffling_node_id = index_of({State#state.this_process_name, node()}, Workers)
-      },
+      NewState = State#state{workers = Workers},
       main(NewState);
 
     {elitism_phase, Elite, Worst} ->
@@ -95,10 +91,10 @@ main(State) ->
     {shuffle_phase, worker_ready} ->
       if
         State#state.shuffling_workers_ready == length(State#state.workers) - 1 ->
-          % Sort individuals by NodeId. If the population subjected to the shuffling is the same,
+          % Sort individuals by node name. If the population subjected to the shuffling is the same,
           % this ensures that the shuffling returns the same results over multiple invocations,
           % even if the calls to broadcast() of distinct nodes are interleaved differently.
-          IndividualsByNodeId = lists:sort(fun({NodeIdA, _}, {NodeIdB, _}) -> NodeIdA =< NodeIdB end, State#state.shuffling_individuals),
+          IndividualsByNodeId = lists:sort(fun({NodeA, _}, {NodeB, _}) -> NodeA =< NodeB end, State#state.shuffling_individuals),
           {State#state.java_worker_process, State#state.java_worker_name} ! [Individual || {_, Individual} <- IndividualsByNodeId],
           NewState = State#state{
             shuffling_individuals = [],
@@ -115,7 +111,7 @@ main(State) ->
       main(NewState);
 
     {shuffle_phase, Population} ->
-      broadcast(Population, State#state.workers, State#state.shuffling_node_id),
+      broadcast(Population, State#state.workers, node()),
       main(State);
 
     _ ->
@@ -132,19 +128,6 @@ broadcast([], Peers, _, _) ->
 broadcast([Individual|Population], Peers, NodeId, Index) ->
   lists:nth(Index + 1, Peers) ! {shuffle_phase, {NodeId, Individual}},
   broadcast(Population, Peers, NodeId, (Index + 1) rem length(Peers)).
-
-
-index_of(Item, List) ->
-  index_of(Item, List, 1).
-
-index_of(_, [], _) ->
-  not_found;
-
-index_of(Item, [Item|_], Index) ->
-  Index;
-
-index_of(Item, [_|T], Index) ->
-  index_of(Item, T, Index + 1).
 
 
 stop_java_node(State) ->
