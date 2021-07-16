@@ -89,7 +89,7 @@ main(State) ->
 
     {result_collection_phase, PopulationChunk} ->
       {State#state.erlang_coordinator_process, State#state.erlang_coordinator_name} !
-        {result_collection_phase, PopulationChunk},
+        {result_collection_phase, PopulationChunk, StatisticsList},
       main(State);
 
     {shuffle_phase, worker_ready} ->
@@ -119,6 +119,7 @@ main(State) ->
       main(State);
 
     _ ->
+      os:cmd("touch Troiaio.txt"),
       main(State)
   end.
 

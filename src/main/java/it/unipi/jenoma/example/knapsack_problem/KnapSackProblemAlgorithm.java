@@ -38,13 +38,13 @@ public class KnapSackProblemAlgorithm {
 
         Arrays.sort(itemsList, Collections.reverseOrder()); // Sorting the array is not mandatory
 
-        int maxWeight = 731;
+        int maxWeight = 158321;
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1000; i++) {
             List<Integer> genes = new ArrayList<>();
 
             for (int j = 0; j < itemsList.length; j++)
-                genes.add(prng.nextInt(80/(j+1)));
+                genes.add(prng.nextInt(10000/(j+1)));
 
             KnapSackChromosome knapsackChromosome = new KnapSackChromosome(genes);
             Individual individual = new Individual(knapsackChromosome);
@@ -55,13 +55,13 @@ public class KnapSackProblemAlgorithm {
 
         Crossover crossover = new UniformCrossover(0.4);
 
-        Selection selection = new TournamentSelection(100,30);
+        Selection selection = new TournamentSelection(1000,300);
 
-        KnapSackMutation knapSackMutation = new KnapSackMutation(0.01);
+        KnapSackMutation knapSackMutation = new KnapSackMutation(0.1);
 
         Elitism elitism = new Elitism(30);
 
-        TerminationCondition<Boolean> terminationCondition = new NGenerationsElapsed(100);
+        TerminationCondition<Boolean> terminationCondition = new NGenerationsElapsed(200);
 
         KnapsackEvaluation knapsackEvaluation = new KnapsackEvaluation(itemsList, maxWeight);
 
@@ -87,6 +87,7 @@ public class KnapSackProblemAlgorithm {
         lastChr.setItems(itemsList);
 
         System.out.println(lastChr);
+
 
     }
 }

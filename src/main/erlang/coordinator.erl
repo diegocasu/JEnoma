@@ -14,7 +14,8 @@
   elitism_worst_individuals = [],
   elitism_workers_ready = 0,
   termination_conditions = [],
-  population_chunks = []
+  population_chunks = [],
+  statisticsList = [[]]
 }).
 
 
@@ -54,8 +55,10 @@ main(State) ->
 
     {elitism_phase, collection_completed} ->
       % Sort best individuals by descending order, worst individuals by ascending order.
-      Elite = lists:sort(fun({_, FitnessA}, {_, FitnessB}) -> FitnessB =< FitnessA end, State#state.elitism_elite_individuals),
-      Worst = lists:sort(fun({FitnessA, _, _}, {FitnessB, _, _}) -> FitnessA =< FitnessB end, State#state.elitism_worst_individuals),
+      Elite = lists:sort(fun({_, FitnessA}, {_, FitnessB}) ->
+        FitnessB =< FitnessA end, State#state.elitism_elite_individuals),
+      Worst = lists:sort(fun({FitnessA, _, _}, {FitnessB, _, _}) ->
+        FitnessA =< FitnessB end, State#state.elitism_worst_individuals),
 
       send_elite_individuals(Elite, Worst, State#state.elitism_number_individuals),
       lists:foreach(fun(Worker) -> Worker ! {elitism_phase, end_elitism} end, State#state.workers),
@@ -99,7 +102,7 @@ main(State) ->
       main(NewState);
 
     {generation_end_phase, TerminationCondition} ->
-      ConditionsList = [TerminationCondition|State#state.termination_conditions],
+      ConditionsList = [TerminationCondition | State#state.termination_conditions],
       NewState = State#state{termination_conditions = ConditionsList},
       if
         length(NewState#state.termination_conditions) == length(NewState#state.workers) ->
@@ -111,13 +114,14 @@ main(State) ->
 
     {result_collection_phase, collection_completed} ->
       {State#state.java_coordinator_process, State#state.java_coordinator_name} !
-        {final_population, State#state.population_chunks},
-      NewState = State#state{population_chunks = []},
+        {final_population, State#state.population_chunks, State#state.statisticsList},
+      NewState = State#state{population_chunks = [], statisticsList = [[]]},
       main(NewState);
 
-    {result_collection_phase, PopulationChunk} ->
-      ChunksList = [PopulationChunk|State#state.population_chunks],
-      NewState = State#state{population_chunks = ChunksList},
+    {result_collection_phase, PopulationChunk, StatisticsListChunk} ->
+      ChunksList = [PopulationChunk | State#state.population_chunks],
+      StatisticsList = [StatisticsListChunk | State#state.statisticsList],
+      NewState = State#state{population_chunks = ChunksList, statisticsList = StatisticsList},
       if
         length(NewState#state.population_chunks) == length(NewState#state.workers) ->
           self() ! {result_collection_phase, collection_completed};
@@ -152,7 +156,7 @@ wait_for_cluster_setup(MissingWorkers, State) ->
 send_workload([], [], _) ->
   workloads_sent;
 
-send_workload([Worker|RemainingWorkers], [Workload|RemainingWorkloads], WorkersFullList) ->
+send_workload([Worker | RemainingWorkers], [Workload | RemainingWorkloads], WorkersFullList) ->
   Worker ! {cluster_setup_phase, Workload, WorkersFullList},
   send_workload(RemainingWorkers, RemainingWorkloads, WorkersFullList).
 
@@ -166,7 +170,7 @@ send_elite_individuals(_, _, 0) ->
 send_elite_individuals([], [], _) ->
   ok;
 
-send_elite_individuals([{EliteIndividual, _}|Elite], [{_, WorstIndex, Worker}|Worst], Remaining) ->
+send_elite_individuals([{EliteIndividual, _} | Elite], [{_, WorstIndex, Worker} | Worst], Remaining) ->
   Worker ! {elitism_phase, {EliteIndividual, WorstIndex}},
   send_elite_individuals(Elite, Worst, Remaining - 1).
 

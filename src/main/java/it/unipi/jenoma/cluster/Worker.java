@@ -301,7 +301,7 @@ class Worker {
 
         List<Individual> elite = original.getIndividuals(0, numberOfCandidates);
         List<Individual> worst = offspring.getIndividuals(0, numberOfCandidates);
-        lastStatistic.fittestIndividual = worst.get(worst.size() - 1);
+        lastStatistic.fittestIndividual = elite.get(0);
 
         lastStatistic.computationTime = Math.abs(lastStatistic.computationTime - System.currentTimeMillis());
         lastStatistic.communicationTime = System.currentTimeMillis();
@@ -318,12 +318,16 @@ class Worker {
         lastStatistic.computationTime += System.currentTimeMillis() - terminationConditionTimestamp;
 
         long communicationTimestamp = System.currentTimeMillis();
+
+        workerLogger.log("Sending " +this.statisticsList.size() + " statistics");
+
         sendToErlangNode(
                 new OtpErlangTuple(
                         new OtpErlangObject[] {
                                 ClusterUtils.Atom.GENERATION_END_PHASE,
                                 new OtpErlangBinary(terminationMap)
                         }));
+        workerLogger.log("Sent GENERATION_END_PHASE message to erlang node");
 
         try {
             OtpErlangObject msg = mailBox.receive();
@@ -339,16 +343,24 @@ class Worker {
                 return false;
 
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.ALGORITHM_END)) {
-                workerLogger.log("Sending the population chunk.");
+                workerLogger.log("Sending the population chunk and " + this.statisticsList.size() + " statistics.");
+                OtpErlangBinary[] otpErlangObjects = new OtpErlangBinary[this.statisticsList.size()];
+
+                for(int j = 0; j < this.statisticsList.size(); j++){
+                    otpErlangObjects[j] = new OtpErlangBinary(this.statisticsList.get(j));
+                }
+
                 sendToErlangNode(
                         new OtpErlangTuple(
                                 new OtpErlangObject[] {
                                         ClusterUtils.Atom.RESULT_COLLECTION_PHASE,
                                         new OtpErlangBinary(offspring)
                                 }));
+
+                workerLogger.log("Sent RESULT_COLLECTION_PHASE message to erlang node");
                 return true;
             }
-        } catch (OtpErlangExit | OtpErlangDecodeException e) {
+        } catch (OtpErlangExit | OtpErlangDecodeException | RuntimeException e) {
             workerLogger.log(ExceptionUtils.getStackTrace(e));
             stopAllNodes();
             System.exit(0);
