@@ -17,13 +17,18 @@ class PlotBuilder:
         self.config = cp.ConfigParser()
         self.config.read("settings.ini")
         plt.tight_layout()
+        self.colors = toList(self.config["Plot_Profile"]["color_list"])
+
         if pltProfile == "fitnesses":
             self.plot_profile = json.loads(self.config["Plot_Profile"]["fitnesses"])
             self.figure, self.axes = plt.subplots(self.plot_profile["rows"],
                                                   self.plot_profile["columns"])
             self.figure.set_figwidth(10)
             self.figure.suptitle('Fitness evolution')
-            self.colors = toList(self.config["Plot_Profile"]["color_list"])
+
+        if pltProfile == "avgratiohisto":
+            self.plot_profile = json.loads(self.config["Plot_Profile"]["avgratiohisto"])
+
 
 
 
@@ -32,21 +37,26 @@ class PlotBuilder:
         self.plot_axes.set_ylabel(y_axis_name, fontsize=14, labelpad=10, rotation=90)
 
     def print_to_screen(self):
-        self.plot_axes.legend(loc=self.config["Plot_Profile"]["legend_position"],
-                              prop={'size': 14}, labels=self.labels)
         plt.draw()
         plt.show(block=True)
 
-    def add_subplot(self, x_axis_value=None, y_axis_values=None, labels=None):
+    def add_subplot(self, x_axis_values=None, y_axis_values=None, labels=None, error_bar=None):
         if self.plot_profile["name"] == "FitnessPlot":
+            plt.clf()
             for y, ax, lb, color in zip(y_axis_values, self.axes, labels, self.colors):
-                ax.plot(x_axis_value, y, color=color, marker=".", markevery=0.1)
+                ax.plot(x_axis_values, y, color=color, marker=".", markevery=0.1)
                 ax.set_title(lb)
-              #  ll, bb, ww, hh = ax.get_position().bounds
-               # ax.set_position([ll, bb , ww*0.5, hh])
+                # ll, bb, ww, hh = ax.get_position().bounds
+                # ax.set_position([ll, bb , ww*0.5, hh])
 
-        elif self.plot_profile == "avgratiohisto":
-            print("TODO")
+        elif self.plot_profile["name"] == "histogramPlot":
+            plt.clf()
+            self.figure, self.axes = plt.subplots()
+            self.figure.suptitle('Average ratio Computing Time / Communication Time')
+            self.axes.bar(tuple(x_axis_values), tuple(y_axis_values), 0.15, yerr=tuple(error_bar))
+            self.axes.set_xticks(x_axis_values)
+            self.axes.set_xticklabels((tuple(labels)))
+
         elif self.plot_profile == "avgratiopie":
             print("TODO")
         else:
@@ -54,7 +64,7 @@ class PlotBuilder:
 
     def save_to_file(self):
         directory = self.config["General"]["export_directory"]
-        export_name = directory + "fitnesses.jpg"
+        export_name = directory + self.plot_profile["name"] + self.plot_profile["Extension"]
         plt.tight_layout()
         plt.savefig(export_name, format="jpg", dpi=300, bbox_inches='tight')
 
