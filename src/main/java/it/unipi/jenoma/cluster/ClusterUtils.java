@@ -102,7 +102,7 @@ class ClusterUtils {
         if (SystemUtils.IS_OS_WINDOWS) {
             return "start /B " + command;
         } else
-            return command + "&";
+            return command + " &";
     }
 
     /**
