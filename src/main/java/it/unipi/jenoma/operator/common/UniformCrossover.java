@@ -45,8 +45,8 @@ public class UniformCrossover implements Crossover {
             return offspring;
         }
 
-        offspring.add(parent1);
-        offspring.add(parent2);
+        offspring.add(parent1.clone());
+        offspring.add(parent2.clone());
 
         for (int i = 0; i < parent1.getChromosome().getLength(); i++) {
             double outcome = prng.nextDouble();
