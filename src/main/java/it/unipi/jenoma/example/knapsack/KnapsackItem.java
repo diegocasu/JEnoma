@@ -1,12 +1,14 @@
-package it.unipi.jenoma.example.knapsack_problem;
+package it.unipi.jenoma.example.knapsack;
 
 import java.io.Serializable;
 
-public class KnapSackItem  implements Serializable,Comparable {
-    double weight;
-    double profit;
 
-    public KnapSackItem(double weight, double profit) {
+public class KnapsackItem implements Serializable, Comparable<KnapsackItem> {
+    private double weight;
+    private double profit;
+
+
+    public KnapsackItem(double weight, double profit) {
         this.weight = weight;
         this.profit = profit;
     }
@@ -26,12 +28,13 @@ public class KnapSackItem  implements Serializable,Comparable {
     public void setProfit(double profit) {
         this.profit = profit;
     }
+
     public double getRatio(){
         return this.profit/this.weight;
     }
 
     @Override
-    public int compareTo(Object o) {
-        return Double.compare(this.getRatio(), ((KnapSackItem)o).getRatio());
+    public int compareTo(KnapsackItem o) {
+        return Double.compare(this.getRatio(), o.getRatio());
     }
 }
