@@ -231,14 +231,13 @@ class ClusterUtils {
 
     /**
      * Returns the shell command to be executed to start the EPMD daemon in the current machine.
-     * The command is <code>epmd -daemon</code>, with an OS specific prefix to be launched in the shell.
-     * The command is in a format suitable to be passed to the <code>command</code> method of
-     * <code>ProcessBuilder</code>.
+     * The command is <code>epmd -daemon</code> and in a format suitable to be passed
+     * to the <code>command</code> method of <code>ProcessBuilder</code>.
      * @return  a list of strings representing the shell command to be executed to start the
      *          EPMD daemon in the current machine.
      */
     public static List<String> getProcessCommandStartEPMD() {
-        List<String> command = new ArrayList<>(getProcessCommandShellPrefix());
+        List<String> command = new ArrayList<>();
         Collections.addAll(command, "epmd", "-daemon");
         return command;
     }
