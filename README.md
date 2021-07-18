@@ -5,8 +5,8 @@
   and a coordinator at the same time; clusters composed of machines with different operating systems
   — Windows and Linux distributions — are allowed.
   The coordinator is implicitly defined as the machine that starts the execution of the program.
-- Java JDK 16, Erlang 24, SSH and SCP installed on all the machines.
-- Maven 3.8.1 installed on the coordinator.
+- Java JDK 16, Erlang 24, SSH and SCP installed in all the machines.
+- Maven 3.8.1 installed in the coordinator.
 - The ```PATH``` environment variable of the machines must be updated so that the commands
   ```java, jar, ssh, scp, mvn``` can be executed directly from the shell.
 - If the coordinator is a Linux machine, the shell process must be invocable with the command ```bash```.
