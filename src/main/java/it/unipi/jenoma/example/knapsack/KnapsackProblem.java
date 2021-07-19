@@ -23,7 +23,6 @@ import java.util.List;
 
 
 public class KnapsackProblem {
-    private static final int MAX_ITEMS_PER_SLOT = 30;
     private static final int MAX_WEIGHT = 731;
     private static final int POPULATION_SIZE = 5000;
     private static final double CROSSOVER_PROBABILITY = 0.4;
@@ -46,7 +45,6 @@ public class KnapsackProblem {
         Population population = new Population(new ArrayList<>());
         PRNG prng = new PRNG(conf.getSeed());
 
-        System.out.printf("Max items per slot: %s.%n", MAX_ITEMS_PER_SLOT);
         System.out.printf("Max weight: %s.%n", MAX_WEIGHT);
         System.out.printf("Population size: %s.%n", POPULATION_SIZE);
         System.out.printf("Mutation probability: %s.%n", CROSSOVER_PROBABILITY);
@@ -69,7 +67,7 @@ public class KnapsackProblem {
             List<Integer> genes = new ArrayList<>();
 
             for (int j = 0; j < itemsList.length; j++)
-                genes.add(prng.nextInt(MAX_ITEMS_PER_SLOT/(j + 1)));
+                genes.add(prng.nextInt(30/(j + 1)));
 
             KnapsackChromosome knapsackChromosome = new KnapsackChromosome(genes);
             Individual individual = new Individual(knapsackChromosome);
