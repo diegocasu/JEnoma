@@ -353,7 +353,8 @@ class Worker {
                         new OtpErlangTuple(
                                 new OtpErlangObject[] {
                                         ClusterUtils.Atom.RESULT_COLLECTION_PHASE,
-                                        new OtpErlangBinary(offspring)
+                                        new OtpErlangBinary(offspring) ,
+                                        new OtpErlangList(otpErlangObjects)
                                 }));
 
                 workerLogger.log("Sent RESULT_COLLECTION_PHASE message to erlang node");
@@ -466,11 +467,14 @@ class Worker {
                 workerLogger.log("Elitism stage skipped.");
 
             geneticAlgorithm.incrementGenerationsElapsed();
+            lastClusterStatistic.currentGeneration = geneticAlgorithm.getGenerationsElapsed();
             workerLogger.log(String.format("Reached generation %s.", geneticAlgorithm.getGenerationsElapsed()));
 
             if (endAlgorithm(offspring, geneticAlgorithm.getGenerationsElapsed(), geneticAlgorithm.getTerminationCondition()))
                 return;
+            workerLogger.log("The shuffling stage is starting.");
 
+            long communicationTimestamp = System.currentTimeMillis();
             Population shuffledPopulation = shuffle(offspring);
             workerLogger.log("The shuffling stage succeeded.");
             geneticAlgorithm.setPopulation(shuffledPopulation);
