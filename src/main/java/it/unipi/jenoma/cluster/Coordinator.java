@@ -12,17 +12,13 @@ import com.ericsson.otp.erlang.OtpErlangTuple;
 import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
 
-import com.opencsv.CSVWriter;
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
-import it.unipi.jenoma.algorithm.Statistics;
+import it.unipi.jenoma.algorithm.ClusterStatistics;
 import it.unipi.jenoma.population.Population;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,8 +46,8 @@ public class Coordinator {
     private OtpMbox mailBox;
     private CoordinatorLogger coordinatorLogger;
     private ExecutorService loggerExecutor;
-    private List<Statistics[]> statisticsList;
-    private Statistics coordinatorLastStatistic;
+    private List<ClusterStatistics[]> clusterStatisticsList;
+    private ClusterStatistics coordinatorLastStatistic;
 
     /**
      * Checks if at least one worker was provided in the configuration file.
@@ -116,7 +112,7 @@ public class Coordinator {
                     ClusterUtils.compose(
                             ClusterUtils.Node.JAVA,
                             geneticAlgorithm.getConfiguration().getCoordinator()));
-        } catch (IOException e) {
+        } catch (IOException e ) {
             localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
             return false;
         }
@@ -402,11 +398,11 @@ public class Coordinator {
 
                 for (OtpErlangObject workerStatisticObject : otpErlangStatisticsList) {
                     OtpErlangList workerStatisticList = (OtpErlangList) (workerStatisticObject);
-                    Statistics[] workerStatisticArray = new Statistics[workerStatisticList.elements().length];
+                    ClusterStatistics[] workerStatisticArray = new ClusterStatistics[workerStatisticList.elements().length];
                     for (int i = 0 ; i < workerStatisticArray.length; i++){
-                        workerStatisticArray[i] = (Statistics)((OtpErlangBinary)workerStatisticList.elementAt(i)).getObject();
+                        workerStatisticArray[i] = (ClusterStatistics)((OtpErlangBinary)workerStatisticList.elementAt(i)).getObject();
                     }
-                    this.statisticsList.add(workerStatisticArray);
+                    this.clusterStatisticsList.add(workerStatisticArray);
                 }
                 return finalPopulation;
             }
@@ -420,7 +416,7 @@ public class Coordinator {
     public Coordinator(GeneticAlgorithm geneticAlgorithm) {
         this.geneticAlgorithm = geneticAlgorithm;
         this.localLogger = Logger.getLogger(LOGGER_NAME);
-        this.statisticsList = new ArrayList<>();
+        this.clusterStatisticsList = new ArrayList<>();
     }
 
     /**
@@ -439,7 +435,7 @@ public class Coordinator {
             localLogger.log(Level.INFO, "Stopping the initialization.");
             return finalPopulation;
         }
-        coordinatorLastStatistic = new Statistics();
+        coordinatorLastStatistic = new ClusterStatistics();
         coordinatorLastStatistic.communicationTime = System.currentTimeMillis();
 
         if (!startCoordinator()) {
@@ -469,7 +465,10 @@ public class Coordinator {
         localLogger.log(Level.INFO, "Cluster initialized successfully.");
         localLogger.log(Level.INFO, "Sending workloads to workers.");
         boolean workloadsSent = sendWorkloads();
+
         coordinatorLastStatistic.communicationTime = System.currentTimeMillis() - coordinatorLastStatistic.communicationTime;
+        coordinatorLastStatistic.workerID = "Cluster_setup";
+        this.clusterStatisticsList.add(new ClusterStatistics[]{coordinatorLastStatistic});
         if (!workloadsSent) {
             localLogger.log(Level.INFO, "Failed to send the workloads.");
             localLogger.log(Level.INFO, "Stopping the initialization.");
@@ -487,7 +486,7 @@ public class Coordinator {
 
         stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
         try {
-            saveStatistics();
+            ClusterStatistics.saveCoordinatorStatistics(this.clusterStatisticsList);
         } catch (IOException e) {
             localLogger.log(Level.SEVERE, ExceptionUtils.getStackTrace(e));
         }
@@ -516,38 +515,4 @@ public class Coordinator {
         stopAllNodes(ClusterUtils.Atom.SHUTDOWN_PHASE);
     }
 
-    public void saveStatistics() throws IOException{
-        File file = new File("./statistics.csv");
-        FileWriter outputfile = new FileWriter(file);
-        CSVWriter writer = new CSVWriter(outputfile);
-
-        // adding header to csv
-        String[] header = { "Id","ComputationTime", "CommunicationTime", "fitnesses" };
-        writer.writeNext(header);
-
-        for (Statistics[] arr : this.statisticsList) {
-
-            if(arr.length == 0){
-                writer.close();
-                return;
-            }
-            double[] workingtTimeArr = new double[arr.length];
-            double[] communicationTimeArr = new double[arr.length];
-            double[] fitnessArr = new double[arr.length];
-            String id = arr[0].workerID;
-            for(int j = 0; j < arr.length; j++){
-                workingtTimeArr[j] = arr[j].computationTime;
-                communicationTimeArr[j] = arr[j].communicationTime;
-                fitnessArr[j] = arr[j].fittestIndividual.getFitness();
-            }
-            String[] newLine = {id,
-                                Arrays.toString(workingtTimeArr),
-                                Arrays.toString(communicationTimeArr),
-                                Arrays.toString(fitnessArr)};
-            writer.writeNext(newLine);
-
-        }
-        writer.close();
-
-    }
 }

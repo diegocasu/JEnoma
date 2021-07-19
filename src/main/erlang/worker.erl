@@ -98,6 +98,7 @@ main(State) ->
           % Sort individuals by NodeId. If the population subjected to the shuffling is the same,
           % this ensures that the shuffling returns the same results over multiple invocations,
           % even if the calls to broadcast() of distinct nodes are interleaved differently.
+          os:cmd("touch ~/tutti_workers_pronti.txt"),
           IndividualsByNodeId = lists:sort(fun({NodeIdA, _}, {NodeIdB, _}) -> NodeIdA =< NodeIdB end, State#state.shuffling_individuals),
           {State#state.java_worker_process, State#state.java_worker_name} ! [Individual || {_, Individual} <- IndividualsByNodeId],
           NewState = State#state{
@@ -119,7 +120,7 @@ main(State) ->
       main(State);
 
     _ ->
-      os:cmd("touch Troiaio.txt"),
+      os:cmd("touch ~/Troiaio.txt"),
       main(State)
   end.
 

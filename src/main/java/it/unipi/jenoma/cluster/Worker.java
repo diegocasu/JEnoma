@@ -15,7 +15,7 @@ import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
 
 import it.unipi.jenoma.algorithm.GeneticAlgorithm;
-import it.unipi.jenoma.algorithm.Statistics;
+import it.unipi.jenoma.algorithm.ClusterStatistics;
 import it.unipi.jenoma.operator.Crossover;
 import it.unipi.jenoma.operator.Elitism;
 import it.unipi.jenoma.operator.Evaluation;
@@ -47,8 +47,8 @@ class Worker {
     private WorkerLogger workerLogger;
     private OtpNode javaNode;
     private OtpMbox mailBox;
-    private List<Statistics> statisticsList;
-    private Statistics lastStatistic;
+    private List<ClusterStatistics> clusterStatisticsList;
+    private ClusterStatistics lastClusterStatistic;
 
     private boolean startJavaNode() {
         try {
@@ -59,6 +59,7 @@ class Worker {
         }
 
         javaNode.setCookie(ClusterUtils.Cluster.COOKIE);
+        workerLogger.log("Set cookie");
         mailBox = javaNode.createMbox(ClusterUtils.Process.WORKER);
         return true;
     }
@@ -72,7 +73,6 @@ class Worker {
         } catch (IOException e) {
             return false;
         }
-
         return true;
     }
 
@@ -301,25 +301,24 @@ class Worker {
 
         List<Individual> elite = original.getIndividuals(0, numberOfCandidates);
         List<Individual> worst = offspring.getIndividuals(0, numberOfCandidates);
-        lastStatistic.fittestIndividual = elite.get(0);
+        lastClusterStatistic.fittestIndividual = elite.get(0);
 
-        lastStatistic.computationTime = Math.abs(lastStatistic.computationTime - System.currentTimeMillis());
-        lastStatistic.communicationTime = System.currentTimeMillis();
+        lastClusterStatistic.elitismTime = System.currentTimeMillis() - lastClusterStatistic.elitismTime;
+        lastClusterStatistic.computationTime = Math.abs(lastClusterStatistic.computationTime - System.currentTimeMillis());
+        lastClusterStatistic.communicationTime = System.currentTimeMillis();
 
         sendIndividualsForElitism(elite, worst);
         receiveIndividualsForElitism(offspring);
     }
 
     private boolean endAlgorithm(Population offspring, int generationsElapsed, TerminationCondition<?> termination) {
-        lastStatistic.communicationTime = Math.abs(lastStatistic.communicationTime - System.currentTimeMillis());
+        lastClusterStatistic.communicationTime = Math.abs(lastClusterStatistic.communicationTime - System.currentTimeMillis());
 
         long terminationConditionTimestamp = System.currentTimeMillis();
         Object terminationMap = termination.map(offspring, generationsElapsed, workerLogger);
-        lastStatistic.computationTime += System.currentTimeMillis() - terminationConditionTimestamp;
+        lastClusterStatistic.computationTime += System.currentTimeMillis() - terminationConditionTimestamp;
 
         long communicationTimestamp = System.currentTimeMillis();
-
-        workerLogger.log("Sending " +this.statisticsList.size() + " statistics");
 
         sendToErlangNode(
                 new OtpErlangTuple(
@@ -343,11 +342,11 @@ class Worker {
                 return false;
 
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.ALGORITHM_END)) {
-                workerLogger.log("Sending the population chunk and " + this.statisticsList.size() + " statistics.");
-                OtpErlangBinary[] otpErlangObjects = new OtpErlangBinary[this.statisticsList.size()];
+                workerLogger.log("Sending the population chunk and " + this.clusterStatisticsList.size() + " statistics.");
+                OtpErlangBinary[] otpErlangObjects = new OtpErlangBinary[this.clusterStatisticsList.size()];
 
-                for(int j = 0; j < this.statisticsList.size(); j++){
-                    otpErlangObjects[j] = new OtpErlangBinary(this.statisticsList.get(j));
+                for(int j = 0; j < this.clusterStatisticsList.size(); j++){
+                    otpErlangObjects[j] = new OtpErlangBinary(this.clusterStatisticsList.get(j));
                 }
 
                 sendToErlangNode(
@@ -366,7 +365,7 @@ class Worker {
             System.exit(0);
         }
 
-        lastStatistic.communicationTime = System.currentTimeMillis() - communicationTimestamp;
+        lastClusterStatistic.communicationTime = System.currentTimeMillis() - communicationTimestamp;
         return true;
     }
 
@@ -381,7 +380,7 @@ class Worker {
                                 ClusterUtils.Atom.SHUFFLE_PHASE,
                                 new OtpErlangList(individuals)
                         }));
-
+        workerLogger.log("Sent SHUFFLE_PHASE message to Erlang node.");
         List<Individual> shuffledIndividuals = new ArrayList<>();
 
         try {
@@ -398,7 +397,7 @@ class Worker {
                 for (OtpErlangObject individual : msgList)
                     shuffledIndividuals.add((Individual) ((OtpErlangBinary) individual).getObject());
             }
-        } catch (OtpErlangDecodeException | OtpErlangExit e) {
+        } catch (OtpErlangDecodeException | OtpErlangExit | RuntimeException e) {
             workerLogger.log(ExceptionUtils.getStackTrace(e));
             stopAllNodes();
             System.exit(0);
@@ -415,32 +414,44 @@ class Worker {
         while (true) { // Algorithm loop.
             Population workingPopulation = geneticAlgorithm.getPopulation().clone();
 
-            lastStatistic = new Statistics();
-            lastStatistic.workerID = mailBox.getName();
-            lastStatistic.computationTime = System.currentTimeMillis();
+            lastClusterStatistic = new ClusterStatistics();
+            lastClusterStatistic.workerID = mailBox.getName();
+            lastClusterStatistic.computationTime = System.currentTimeMillis();
 
+            lastClusterStatistic.selectionTime = System.currentTimeMillis();
             Population matingPool = geneticAlgorithm.getSelection().select(workingPopulation, mainGenerator, workerLogger);
+            lastClusterStatistic.selectionTime = System.currentTimeMillis() - lastClusterStatistic.selectionTime ;
+
             if (matingPool == null || matingPool.getSize() < 2) {
                 workerLogger.log("The selection stage failed. Less than two individuals selected.");
                 return;
             }
             workerLogger.log("The selection stage succeeded.");
-
+            lastClusterStatistic.crossoverTime = System.currentTimeMillis();
             Population offspring = cross(matingPool, geneticAlgorithm.getPopulation().getSize(), geneticAlgorithm.getCrossover(), threadGenerators);
+            lastClusterStatistic.crossoverTime = System.currentTimeMillis() - lastClusterStatistic.crossoverTime;
 
             if (offspring == null) {
                 workerLogger.log("The crossover stage failed.");
                 return;
             }
             workerLogger.log("The crossover stage succeeded.");
+            lastClusterStatistic.mutationTime = System.currentTimeMillis();
+            boolean mutationPerformedSuccessfully = mutate(offspring, geneticAlgorithm.getMutation(), threadGenerators);
+            lastClusterStatistic.mutationTime = System.currentTimeMillis() - lastClusterStatistic.mutationTime;
 
-            if (!mutate(offspring, geneticAlgorithm.getMutation(), threadGenerators)) {
+            if (!mutationPerformedSuccessfully) {
                 workerLogger.log("The mutation stage failed.");
                 return;
             }
+
             workerLogger.log("The mutation stage succeeded.");
 
-            if (!evaluate(offspring, geneticAlgorithm.getEvaluation())) {
+            lastClusterStatistic.evaluationTime = System.currentTimeMillis();
+            boolean evaluationStagePerformedSuccessfully = evaluate(offspring, geneticAlgorithm.getEvaluation());
+            lastClusterStatistic.evaluationTime = System.currentTimeMillis() - lastClusterStatistic.evaluationTime;
+
+            if (!evaluationStagePerformedSuccessfully) {
                 workerLogger.log("The evaluation stage failed.");
                 return;
             }
@@ -448,6 +459,7 @@ class Worker {
 
 
             if (geneticAlgorithm.getElitism().getNumberOfIndividuals() > 0) {
+                lastClusterStatistic.elitismTime = System.currentTimeMillis();
                 applyElitism(geneticAlgorithm.getPopulation(), offspring, geneticAlgorithm.getElitism());
                 workerLogger.log("The elitism stage succeeded.");
             } else
@@ -463,16 +475,18 @@ class Worker {
             workerLogger.log("The shuffling stage succeeded.");
             geneticAlgorithm.setPopulation(shuffledPopulation);
 
-            lastStatistic.communicationTime += System.currentTimeMillis() - communicationTimestamp;
-            this.statisticsList.add(lastStatistic);
+            lastClusterStatistic.communicationTime += System.currentTimeMillis() - communicationTimestamp;
+            this.clusterStatisticsList.add(lastClusterStatistic);
         }
     }
 
     private void receiveLoop() throws OtpErlangDecodeException, OtpErlangExit {
         boolean waitForStop = false;
+        workerLogger.log("Waiting for Workload");
 
         while (true) {
             OtpErlangObject msg = mailBox.receive();
+            workerLogger.log("Stopping the execution.");
 
             if (msg instanceof OtpErlangAtom msgAtom && msgAtom.equals(ClusterUtils.Atom.STOP)) {
                 workerLogger.log("Stopping the execution.");
@@ -507,7 +521,7 @@ class Worker {
         this.loggerCoordinatorHost = loggerCoordinatorHost;
         this.numberOfThreads = Runtime.getRuntime().availableProcessors();
         this.executorService = Executors.newFixedThreadPool(numberOfThreads);
-        this.statisticsList  = new ArrayList<>();
+        this.clusterStatisticsList = new ArrayList<>();
     }
 
     public void start() {

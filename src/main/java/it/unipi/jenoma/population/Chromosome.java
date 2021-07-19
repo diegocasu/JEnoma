@@ -59,8 +59,8 @@ public class Chromosome<T extends Serializable> implements Iterable<T>, Serializ
      * @param toIndex    the upper bound (exclusive) of the interval.
      */
     public void cross(Chromosome<T> c, int fromIndex, int toIndex) {
-       for (int i = fromIndex; i <= toIndex; i++)
-           this.genes.set(i, c.getGene(i));
+        for (int i = fromIndex; i <= toIndex; i++)
+            this.genes.set(i, c.getGene(i));
     }
 
     /**

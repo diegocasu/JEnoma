@@ -7,7 +7,7 @@ import scipy.stats
 import json
 import math
 
-toList = lambda s : ast.literal_eval(s)
+formStringtoList = lambda s : ast.literal_eval(s)
 
 class Main:
 
@@ -16,13 +16,13 @@ class Main:
         self.config.read("settings.ini")
         self.jenomaStatdf = pd.read_csv(self.config["General"]["working_csv"])
        # self.drawFitnessesPlot()
-        self.drawHistoPlot()
-
+       # self.drawHistoPlot()
+        self.drawPiePlot()
 
     def drawFitnessesPlot(self):
         self.scatterBuilder = PlotBuilder("fitnesses")
         fitnesses = self.jenomaStatdf["fitnesses"]
-        y_values = [toList(s) for s in self.jenomaStatdf["fitnesses"]]
+        y_values = [formStringtoList(s) for s in self.jenomaStatdf["fitnesses"]]
         idLabels = self.jenomaStatdf["Id"]
         self.scatterBuilder.add_subplot(x_axis_values=np.arange(start=0, step=1, stop=len(y_values[0])),
                                         y_axis_values=y_values,
@@ -32,8 +32,8 @@ class Main:
     def drawHistoPlot(self):
         self.histoBuilder = PlotBuilder("avgratiohisto")
 
-        computationTime   = [toList(cmpt) for cmpt in self.jenomaStatdf["ComputationTime"]]
-        communicationTime = [toList(commt) for commt in self.jenomaStatdf["CommunicationTime"]]
+        computationTime   = [formStringtoList(cmpt) for cmpt in self.jenomaStatdf["ComputationTime"]]
+        communicationTime = [formStringtoList(commt) for commt in self.jenomaStatdf["CommunicationTime"]]
         ci_level = float(json.loads(self.config["Plot_Profile"]["avgratiohisto"])["confidence_level"])
         avgratio = []
         workerCI = []
@@ -55,7 +55,19 @@ class Main:
 
 
     def drawPiePlot(self):
-        self.pieBuilder = PlotBuilder("fitnesses")
+        self.pieBuilder = PlotBuilder("stagesPiePlot")
+
+        crossoverTime  = np.average(formStringtoList(self.jenomaStatdf["crossoverTime"][0]))
+        elitismTime    = np.average(formStringtoList(self.jenomaStatdf["elitismTime"][0]))
+        mutationTime   = np.average(formStringtoList(self.jenomaStatdf["mutationTime"][0]))
+        selectionTime  = np.average(formStringtoList(self.jenomaStatdf["selectionTime"][0]))
+        evaluationTime = np.average(formStringtoList(self.jenomaStatdf["evaluationTime"][0]))
+
+        sizes = [crossoverTime, elitismTime, mutationTime, selectionTime, evaluationTime]
+        labels = ["crossoverTime", "elitismTime",  "mutationTime", "selectionTime", "evaluationTime"]
+
+        self.pieBuilder.add_subplot(None,sizes,labels,None)
+        self.pieBuilder.draw()
 
 
 if __name__ == '__main__':

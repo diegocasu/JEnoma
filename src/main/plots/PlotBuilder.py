@@ -29,7 +29,7 @@ class PlotBuilder:
         if pltProfile == "avgratiohisto":
             self.plot_profile = json.loads(self.config["Plot_Profile"]["avgratiohisto"])
 
-
+        self.plot_profile = json.loads(self.config["Plot_Profile"]["stagesPiePlot"])
 
 
     def set_axes_label(self, x_axis_name, y_axis_name):
@@ -49,7 +49,7 @@ class PlotBuilder:
                 # ll, bb, ww, hh = ax.get_position().bounds
                 # ax.set_position([ll, bb , ww*0.5, hh])
 
-        elif self.plot_profile["name"] == "histogramPlot":
+        elif self.plot_profile["name"]  == "histogramPlot":
             plt.clf()
             self.figure, self.axes = plt.subplots()
             self.figure.suptitle('Average ratio Computing Time / Communication Time')
@@ -57,8 +57,16 @@ class PlotBuilder:
             self.axes.set_xticks(x_axis_values)
             self.axes.set_xticklabels((tuple(labels)))
 
-        elif self.plot_profile == "avgratiopie":
-            print("TODO")
+        elif self.plot_profile["name"]  == "stagesPiePlot":
+            plt.clf()
+            self.figure, self.axes = plt.subplots()
+            self.figure.suptitle("Genetic Operators contribution in Computation Time")
+            explode = tuple(self.plot_profile["explode"])
+
+            self.axes.pie(y_axis_values, explode=explode, labels=labels, autopct='%1.1f%%', shadow=False, startangle=90)
+            self.axes.axis('equal')
+
+
         else:
             print("not valid profile")
 

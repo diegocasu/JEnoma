@@ -17,7 +17,7 @@ public class KnapSackMutation implements Mutation, Serializable {
     @Override
     public void mutate(Individual individual, PRNG prng, ClusterLogger logger) {
         int mutatingGene = prng.nextInt(individual.getChromosome().getLength());
-        Integer mutationValue = (int)individual.getChromosome().getGene(mutatingGene)+2;
+        Integer mutationValue = (int)individual.getChromosome().getGene(mutatingGene)+1;
         if(mutationOccurs(prng)) {
             ((KnapSackChromosome)individual.getChromosome()).setGene(mutatingGene, mutationValue);
         }
