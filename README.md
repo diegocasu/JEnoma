@@ -1,5 +1,12 @@
 # JEnoma
 
+Project for the Distributed Systems and Middleware Technologies course of the Master of Science in 
+Computer Engineering, University of Pisa.
+
+The project consists in the design and implementation of a Java library for the distributed execution of
+genetic algorithms on a set of remote machines, exploiting Erlang to manage the cluster and the communication
+between nodes.
+
 ## Requirements
 - A cluster of N+1 machines, composed of N workers and 1 coordinator, where a machine cannot be a worker
   and a coordinator at the same time; clusters composed of machines with different operating systems
